@@ -419,7 +419,7 @@ def _upload_image(path, session, create_url, complete_url, log, mime):
     if mime is not None:
         file_mime = mime
     else:
-        file_mime = MIMES.get(file_ext, MIMES['.jpg'])
+        file_mime = MIMES.get(file_ext, MIMES['.png'])
 
     with open(path, 'rb') as f:
         info = {
