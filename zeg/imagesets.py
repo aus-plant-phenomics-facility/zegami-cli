@@ -222,10 +222,9 @@ def _resolve_paths(paths):
     resolved = []
     for path in paths:
         if os.path.isdir(path):
-            resolved.extend(
-                entry.path for entry in os.scandir(path)
-                if entry.is_file() and entry.name.lower().endswith(allowed_ext)
-            )
+            for root, dirs, files in os.walk(path):
+                for file in files:
+                    resolved.append(os.path.join(root, file))
         elif os.path.isfile(path) and path.lower().endswith(allowed_ext):
             resolved.append(path)
     return resolved
@@ -234,7 +233,7 @@ def _resolve_paths(paths):
 def _upload_image(path, session, create_url, complete_url, log):
     file_name = os.path.basename(path)
     file_ext = os.path.splitext(path)[-1]
-    file_mime = MIMES.get(file_ext, MIMES['.jpg'])
+    file_mime = MIMES.get(file_ext, MIMES['.png'])
 
     with open(path, 'rb') as f:
         info = {
