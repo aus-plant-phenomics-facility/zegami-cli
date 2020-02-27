@@ -25,6 +25,7 @@ MIMES = {
     ".tif": "image/tiff",
     ".tiff": "image/tiff",
     ".dcm": "application/dicom",
+    "": "image/png"
 }
 
 
