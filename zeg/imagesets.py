@@ -24,6 +24,7 @@ MIMES = {
     ".tif": "image/tiff",
     ".tiff": "image/tiff",
     ".dcm": "application/dicom",
+    "": "image/png"
 }
 
 
@@ -221,10 +222,12 @@ def _resolve_paths(paths):
 
     resolved = []
     for path in paths:
+        # this could be rewritten with comprehension and might read more nicely
         if os.path.isdir(path):
             for root, dirs, files in os.walk(path):
                 for file in files:
-                    resolved.append(os.path.join(root, file))
+                    if file.endswith(allowed_ext):
+                        resolved.append(os.path.join(root, file))
         elif os.path.isfile(path) and path.lower().endswith(allowed_ext):
             resolved.append(path)
     return resolved
