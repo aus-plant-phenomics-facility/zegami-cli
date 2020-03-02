@@ -1,0 +1,8 @@
+imageset_type: file
+file_config:
+  paths:
+{paths}
+dataset_column: {path_column}
+collection_id: {collection_id}
+dataset_id: {dataset_id}
+

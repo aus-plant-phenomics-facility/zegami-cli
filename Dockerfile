@@ -8,3 +8,5 @@ RUN pip install sqlalchemy
 COPY . /zegami-cli
 
 RUN pip install /zegami-cli
+
+ENTRYPOINT ['python','appf-collection-builder/main.py']
