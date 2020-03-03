@@ -121,9 +121,6 @@ dataset_yaml = dataset_template.format(database=db_name, query=query.replace("\n
 with open("dataset.yaml", "w") as text_file:
     text_file.write(dataset_yaml)
 
-print(dataset_yaml)
-
-
 with open("template-imageset.yaml", 'r') as imageset_template_file:
     imageset_template = imageset_template_file.read()
 
@@ -134,7 +131,6 @@ imageset_yaml = imageset_template.format(paths=paths, path_column=camera_label, 
 
 with open("imageset.yaml", "w") as text_file:
     text_file.write(imageset_yaml)
-print(imageset_yaml)
 
 with open("dataset-upload.sh", 'r') as dataset_upload_file:
     dataset_upload = dataset_upload_file.read()
