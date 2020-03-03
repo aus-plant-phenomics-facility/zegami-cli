@@ -13,14 +13,8 @@ from
    rgb_side_far_0_analysis."RGB_Side_Far_0 Area" + rgb_side_far_4_analysis."RGB_Side_Far_4 Area" AS "Side Far Projected Shoot Area",
    rgb_side_lower_0_analysis."RGB_Side_Lower_0 Area" + rgb_side_lower_4_analysis."RGB_Side_Lower_4 Area" AS "Side Lower Projected Shoot Area",
    rgb_side_upper_0_analysis."RGB_Side_Upper_0 Area" + rgb_side_upper_4_analysis."RGB_Side_Upper_4 Area" AS "Side Upper Projected Shoot Area",
-   rgb_side_far_0_analysis.*,
-   rgb_side_far_4_analysis.*,
-   rgb_side_lower_0_analysis.*,
-   rgb_side_lower_4_analysis.*,
-   rgb_side_upper_0_analysis.*,
-   rgb_side_upper_4_analysis.*,
-   rgb_tv_analysis.*,
-   path_view.* 
+   substring(path_view."RGB_3D_3D_side_far_0" FROM '[\d-]+/(.*)') as "RGB_3D_3D_side_far_0",
+   path_view."RGB_3D_3D_side_far_0" as "RGB_3D_3D_side_far_0_path"
 FROM
    snapshot 
    LEFT JOIN
@@ -50,8 +44,8 @@ FROM
    LEFT JOIN
       rgb_tv_analysis 
       ON rgb_tv_analysis."RGB_TV_snapshot_id" = snapshot.id 
-WHERE
-   snapshot.measurement_label = '{measurement_label}'
-ORDER BY
-   "Plant ID",
-   time_stamp
+WHERE 
+   snapshot.measurement_label = '{measurement_label}' 
+ORDER BY 
+   "Plant ID", 
+   time_stamp 

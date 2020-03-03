@@ -2,7 +2,5 @@
 dataset_type: sql
 # Config for the sql data set type
 sql_config:
-    connection: "postgresql://readonlyuser:readonlyuser@localhost:5432/{database}?sslmode=disable"
-    query: "{query}"
-
-
+    connection: "postgresql://{user}:{password}@{host}:5432/{database}?sslmode=disable"
+    query: {query}
