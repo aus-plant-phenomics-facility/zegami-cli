@@ -6,7 +6,7 @@ import pandas as pd
 import subprocess
 import requests
 from getpass import getpass
-
+from zeg.__main__ import main as zeg
 
 TPA_PLANTDB = "192.168.0.24"
 #TPA_PLANTDB = "tpa-plantdb.plantphenomics.org.au" #"192.168.0.24"
@@ -162,14 +162,21 @@ with open("template-qb.sql", 'r') as query_file:
     with open("dataset-upload.sh", 'r') as dataset_upload_file:
         dataset_upload = dataset_upload_file.read()
 
-        command = dataset_upload.format(dataset_upload_id=response_data['collection']['upload_dataset_id'], token=token)
+        #command = dataset_upload.format(dataset_upload_id=response_data['collection']['upload_dataset_id'], token=token)
 
-        subprocess.check_call(command.split())
+        args = dataset_upload.format(dataset_upload_id=response_data['collection']['upload_dataset_id'], token=token)[4:]
+
+        zeg(args.split())
+
+        #subprocess.check_call(command.split())
+
 
     # TODO: Update imageset
     with open("imageset-upload.sh", 'r') as imageset_upload_file:
         imageset_upload = imageset_upload_file.read()
 
-        command = imageset_upload.format(imageset_id=response_data['collection']['imageset_id'], token=token)
+        #command = imageset_upload.format(imageset_id=response_data['collection']['imageset_id'], token=token)
+        args = imageset_upload.format(imageset_id=response_data['collection']['imageset_id'], token=token)[4:]
 
-        subprocess.check_call(command.split())
+        #subprocess.check_call(command.split())
+        zeg(args.split())
