@@ -24,6 +24,9 @@ RUN pip3 install pandas
 
 COPY ./[^a]* /zegami-cli/
 
+RUN echo $(ls -1 /zegami-cli/)
+
+
 RUN pip3 install /zegami-cli
 
 COPY appf-collection-builder /zegami-cli/appf-collection-builder
