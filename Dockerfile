@@ -22,7 +22,7 @@ RUN pip3 install psycopg2
 RUN pip3 install sqlalchemy
 RUN pip3 install pandas
 
-COPY ./[^appf-collection-builder]* /zegami-cli
+COPY ./[^appf\-collection\-builder]\S* /zegami-cli/
 
 RUN pip3 install /zegami-cli
 
