@@ -96,21 +96,36 @@ response = requests.post(url, json=data)
 response_data = response.json()
 token = response_data['token']
 
+create_collection = False
+if(create_collection):
+    data = {
+        "name": measurement_label,
+        "description": db_name + " " + measurement_label,
+        "deepzoom_version": 2
 
-data = {
-    "name": measurement_label,
-    "description": db_name + " " + measurement_label,
-    "deepzoom_version": 2
+    }
 
-}
+    url = "https://zegami.com/api/v0/project/OVdSdE5n/collections/"
 
-url = "https://zegami.com/api/v0/project/OVdSdE5n/collections/"
+    headers = {'Content-type': 'application/json', 'Authorization': 'Bearer {}'.format(token)}
 
-headers = {'Content-type': 'application/json', 'Authorization': 'Bearer {}'.format(token)}
+    response = requests.post(url, json=data, headers=headers)
+    response_data = response.json()
+    print(response_data)
+else:
+    url = "https://zegami.com/api/v0/project/OVdSdE5n/collections/"
+    headers = {'Authorization': 'Bearer {}'.format(token)}
+    response = requests.get(url, headers=headers)
+    response_data = response.json()
+    #print(response_data)
 
-response = requests.post(url, json=data, headers=headers)
-response_data = response.json()
-print(response_data)
+    #print()
+
+    for i in response_data['collections']:
+        if response_data['collections'][i]['name'] == measurement_label:
+            print(response_data['collections'][i])
+
+    exit()
 
 
 with open("template-dataset.yaml", 'r') as dataset_template_file:
