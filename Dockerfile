@@ -22,10 +22,16 @@ RUN pip3 install psycopg2
 RUN pip3 install sqlalchemy
 RUN pip3 install pandas
 
-COPY ./[^a]* /zegami-cli/
+COPY ./requirements /zegami-cli/
+COPY ./LICENSE /zegami-cli/
+COPY ./MANIFEST.in /zegami-cli/
+COPY ./README.md /zegami-cli/
+COPY ./requirements /zegami-cli/
+COPY ./setup.py /zegami-cli/
+COPY ./tox.ini /zegami-cli/
+COPY ./zeg /zegami-cli/
 
 RUN echo $(ls -1 /zegami-cli/)
-
 
 RUN pip3 install /zegami-cli
 
