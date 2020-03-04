@@ -96,8 +96,17 @@ response = requests.post(url, json=data)
 response_data = response.json()
 token = response_data['token']
 
-create_collection = False
-if(create_collection):
+url = "https://zegami.com/api/v0/project/OVdSdE5n/collections/"
+headers = {'Authorization': 'Bearer {}'.format(token)}
+response = requests.get(url, headers=headers)
+response_data = response.json()
+
+for i in range(0, len(response_data['collections'])):
+    if response_data['collections'][i]['name'] == measurement_label:
+        print(response_data['collections'][i])
+        collection_obj = response_data['collections'][i]
+
+if not collection_obj:
     data = {
         "name": measurement_label,
         "description": db_name + " " + measurement_label,
@@ -113,21 +122,8 @@ if(create_collection):
     response_data = response.json()
     collection_obj = response_data['collection']
     print(response_data)
-else:
-    url = "https://zegami.com/api/v0/project/OVdSdE5n/collections/"
-    headers = {'Authorization': 'Bearer {}'.format(token)}
-    response = requests.get(url, headers=headers)
-    response_data = response.json()
-    #print(response_data)
+#
 
-    #print()
-
-    for i in range(0, len(response_data['collections'])):
-        if response_data['collections'][i]['name'] == measurement_label:
-            print(response_data['collections'][i])
-            collection_obj = response_data['collections'][i]
-
-    exit()
 
 
 with open("template-dataset.yaml", 'r') as dataset_template_file:
