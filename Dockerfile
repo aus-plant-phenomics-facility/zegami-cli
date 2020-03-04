@@ -26,10 +26,10 @@ COPY ./requirements /zegami-cli/
 COPY ./LICENSE /zegami-cli/
 COPY ./MANIFEST.in /zegami-cli/
 COPY ./README.md /zegami-cli/
-COPY ./requirements /zegami-cli/
+COPY ./requirements /zegami-cli/requirements
 COPY ./setup.py /zegami-cli/
 COPY ./tox.ini /zegami-cli/
-COPY ./zeg /zegami-cli/
+COPY ./zeg /zegami-cli/zeg
 
 RUN echo $(ls -1 /zegami-cli/)
 
