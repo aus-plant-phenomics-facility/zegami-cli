@@ -111,6 +111,7 @@ if(create_collection):
 
     response = requests.post(url, json=data, headers=headers)
     response_data = response.json()
+    collection_obj = response_data['collection']
     print(response_data)
 else:
     url = "https://zegami.com/api/v0/project/OVdSdE5n/collections/"
@@ -121,9 +122,10 @@ else:
 
     #print()
 
-    for i in response_data['collections']:
+    for i in range(0, len(response_data['collections'])):
         if response_data['collections'][i]['name'] == measurement_label:
             print(response_data['collections'][i])
+            collection_obj = response_data['collections'][i]
 
     exit()
 
@@ -142,7 +144,7 @@ with open("template-imageset.yaml", 'r') as imageset_template_file:
 paths = "    - /images/" + lemnatec_df["{}_path".format(camera_label)].dropna()
 paths = paths.str.cat(sep="\n")
 #TODO: Choice of camera
-imageset_yaml = imageset_template.format(paths=paths, path_column=camera_label, collection_id=response_data['collection']['id'], dataset_id=response_data['collection']['dataset_id'])
+imageset_yaml = imageset_template.format(paths=paths, path_column=camera_label, collection_id=collection_obj['id'], dataset_id=collection_obj['dataset_id'])
 
 with open("imageset.yaml", "w") as text_file:
     text_file.write(imageset_yaml)
@@ -150,13 +152,13 @@ with open("imageset.yaml", "w") as text_file:
 with open("dataset-upload.sh", 'r') as dataset_upload_file:
     dataset_upload = dataset_upload_file.read()
 
-args = dataset_upload.format(dataset_upload_id=response_data['collection']['upload_dataset_id'], token=token)
+args = dataset_upload.format(dataset_upload_id=collection_obj['upload_dataset_id'], token=token)
 sys.argv = args.split()
 zeg()
 
 with open("imageset-upload.sh", 'r') as imageset_upload_file:
     imageset_upload = imageset_upload_file.read()
 
-args = imageset_upload.format(imageset_id=response_data['collection']['imageset_id'], token=token)
+args = imageset_upload.format(imageset_id=collection_obj['imageset_id'], token=token)
 sys.argv = args.split()
 zeg()
