@@ -27,7 +27,7 @@ if data_source == SRC_FILE:
     collection_name = files[file_selection]
     input_file_path = os.path.join("/data_source",collection_name)
 
-    lemnatec_df = pandas.read_csv(input_file_path)
+    lemnatec_df = pd.read_csv(input_file_path)
     print(lemnatec_df[1:10])
 
 
