@@ -5,82 +5,118 @@ from getpass import getpass
 from zeg.__main__ import main as zeg
 import sys
 
-TPA_PLANTDB = "192.168.0.24"
-#TPA_PLANTDB = "tpa-plantdb.plantphenomics.org.au"
 
-camera_label = "RGB_3D_3D_side_far_0"
+SRC_FILE = 1
+SRC_DATABASE = 2
 
-user = "readonlyuser"
-password = "readonlyuser"
 
-with open("template-qb.sql", 'r') as query_file:
-    query_builder_template = query_file.read()
+# File or Database
+data_source = int(input("File [1] or Database[2]?"))
 
-# dbname – the database name (database is a deprecated alias)
-# user – user name used to authenticate
-# password – password used to authenticate
-# host – database host address (defaults to UNIX socket if not provided)
-# port – connection port number (defaults to 5432 if not provided)
-conn = psycopg2.connect(dbname="LTSystem", user=user, password=password, host=TPA_PLANTDB)
-cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-cur.execute("SELECT name FROM ltdbs;")
-prod_databases = cur.fetchall()
-cur.close()
-conn.close()
+#TODO:  Is image source different?
 
-for i, database in enumerate(prod_databases):
-    print("{}:\t{}".format(i, database['name']))
 
-db_selection = int(input("Select Database: "))
-db_name = prod_databases[db_selection]['name']
 
-conn = psycopg2.connect(dbname=db_name, user=user, password=password, host=TPA_PLANTDB)
-cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-cur.execute("SELECT measurement_label, min(time_stamp) AS imaging_day FROM snapshot GROUP BY measurement_label ORDER by measurement_label;")
-measurement_labels = cur.fetchall()
-cur.close()
-conn.close()
+if data_source == FILE:
+    collection_name = file
+    db_name = None
+    files = os.listdir("/data_source")
+    for i, f in enumerate(files):
+        print(i, f)
+    file_selection = int(input("Select File:"))
 
-for i, measurement_label in enumerate(measurement_labels):
-    print("{}:\t{}".format(i, measurement_label['measurement_label']))
+    with open(os.path.join("/data_source",files[file_selection]), "r") as data_input_file:
+        print(data_input_file.read())
+    exit()
 
-ml = int(input("Enter a number: "))
 
-measurement_label = measurement_labels[ml]['measurement_label']
-imaging_day = measurement_labels[ml]['imaging_day']
 
-conn = psycopg2.connect(dbname=db_name, user=user, password=password, host=TPA_PLANTDB)
-cur = conn.cursor()
-cur.execute("SELECT measurement_label, min(time_stamp) FROM snapshot GROUP BY measurement_label ORDER by measurement_label;")
-measurement_labels = cur.fetchall()
-cur.close()
-conn.close()
+elif data_source == DATABASE:
+    TPA_PLANTDB = "192.168.0.24"
+    #TPA_PLANTDB = "tpa-plantdb.plantphenomics.org.au"
 
-conn = psycopg2.connect(dbname=db_name, user=user, password=password, host=TPA_PLANTDB)
-cur = conn.cursor(cursor_factory = psycopg2.extras.RealDictCursor)
-cur.execute("SELECT * FROM metadata_view WHERE id_tag in (SELECT id_tag FROM snapshot WHERE measurement_label = (%s))", [measurement_label,])
-metadata_fields = cur.fetchall()
-cur.close()
-conn.close()
+    user = "readonlyuser"
+    password = "readonlyuser"
 
-df = pd.DataFrame(metadata_fields)
-df = df.dropna(how='all', axis=1)
+    # dbname – the database name (database is a deprecated alias)
+    # user – user name used to authenticate
+    # password – password used to authenticate
+    # host – database host address (defaults to UNIX socket if not provided)
+    # port – connection port number (defaults to 5432 if not provided)
+    conn = psycopg2.connect(dbname="LTSystem", user=user, password=password, host=TPA_PLANTDB)
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("SELECT name FROM ltdbs;")
+    prod_databases = cur.fetchall()
+    cur.close()
+    conn.close()
 
-#TODO: Check metadata exists
+    for i, database in enumerate(prod_databases):
+        print("{}:\t{}".format(i, database['name']))
 
-metadata_view_fields = ("metadata_view.\"{}\"," * len(df.columns)).format(*sorted(df.columns))
+    db_selection = int(input("Select Database: "))
+    db_name = prod_databases[db_selection]['name']
 
-query = query_builder_template.format(measurement_label=measurement_label, imaging_day=imaging_day, metadata_view_fields=metadata_view_fields)
-print(query)
+    conn = psycopg2.connect(dbname=db_name, user=user, password=password, host=TPA_PLANTDB)
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("SELECT measurement_label, min(time_stamp) AS imaging_day FROM snapshot GROUP BY measurement_label ORDER by measurement_label;")
+    measurement_labels = cur.fetchall()
+    cur.close()
+    conn.close()
 
-conn = psycopg2.connect(dbname=db_name, user=user, password=password, host=TPA_PLANTDB)
-cur = conn.cursor(cursor_factory = psycopg2.extras.RealDictCursor)
-cur.execute(query)
-lemnatec_data = cur.fetchall()
-cur.close()
-conn.close()
+    for i, measurement_label in enumerate(measurement_labels):
+        print("{}:\t{}".format(i, measurement_label['measurement_label']))
 
-lemnatec_df = pd.DataFrame(lemnatec_data)
+    ml = int(input("Enter a number: "))
+
+    measurement_label = measurement_labels[ml]['measurement_label']
+    imaging_day = measurement_labels[ml]['imaging_day']
+
+    conn = psycopg2.connect(dbname=db_name, user=user, password=password, host=TPA_PLANTDB)
+    cur = conn.cursor()
+    cur.execute("SELECT measurement_label, min(time_stamp) FROM snapshot GROUP BY measurement_label ORDER by measurement_label;")
+    measurement_labels = cur.fetchall()
+    cur.close()
+    conn.close()
+
+    conn = psycopg2.connect(dbname=db_name, user=user, password=password, host=TPA_PLANTDB)
+    cur = conn.cursor(cursor_factory = psycopg2.extras.RealDictCursor)
+    cur.execute("SELECT * FROM metadata_view WHERE id_tag in (SELECT id_tag FROM snapshot WHERE measurement_label = (%s))", [measurement_label,])
+    metadata_fields = cur.fetchall()
+    cur.close()
+    conn.close()
+
+    df = pd.DataFrame(metadata_fields)
+    df = df.dropna(how='all', axis=1)
+
+    #TODO: Check metadata exists
+
+    metadata_view_fields = ("metadata_view.\"{}\"," * len(df.columns)).format(*sorted(df.columns))
+
+    with open("template-qb.sql", 'r') as query_file:
+        query_builder_template = query_file.read()
+
+    query = query_builder_template.format(measurement_label=measurement_label, imaging_day=imaging_day, metadata_view_fields=metadata_view_fields)
+    print(query)
+
+    conn = psycopg2.connect(dbname=db_name, user=user, password=password, host=TPA_PLANTDB)
+    cur = conn.cursor(cursor_factory = psycopg2.extras.RealDictCursor)
+    cur.execute(query)
+    lemnatec_data = cur.fetchall()
+    cur.close()
+    conn.close()
+
+    collection_name = measurement_label
+    lemnatec_df = pd.DataFrame(lemnatec_data)
+
+else:
+    print("Invalid data source selection.")
+    exit()
+
+
+
+
+
+
 
 zeg_username = input('Username: ')
 zeg_password = getpass()
@@ -103,15 +139,15 @@ response_data = response.json()
 
 collection_obj = None
 for i in range(0, len(response_data['collections'])):
-    if response_data['collections'][i]['name'] == measurement_label:
+    if response_data['collections'][i]['name'] == collection_name:
         print(response_data['collections'][i],flush=True)
         collection_obj = response_data['collections'][i]
 
 if collection_obj is None:
 
     data = {
-        "name": measurement_label,
-        "description": db_name + " " + measurement_label,
+        "name": collection_name,
+        "description": db_name + " " + collection_name,
         "deepzoom_version": 2
     }
 
@@ -125,20 +161,28 @@ if collection_obj is None:
     print(response_data,flush=True)
 
 
-with open("template-dataset.yaml", 'r') as dataset_template_file:
-    dataset_template = dataset_template_file.read()
+if data_source == SRC_FILE:
 
-dataset_yaml = dataset_template.format(database=db_name, query=query.replace("\n",""), user=user, password=password, host=TPA_PLANTDB)
+elif data_source == SRC_DATABASE:
+    with open("template-dataset.yaml", 'r') as dataset_template_file:
+        dataset_template = dataset_template_file.read()
 
-with open("dataset.yaml", "w") as text_file:
-    text_file.write(dataset_yaml)
+    dataset_yaml = dataset_template.format(database=db_name, query=query.replace("\n",""), user=user, password=password, host=TPA_PLANTDB)
+
+    with open("dataset.yaml", "w") as text_file:
+        text_file.write(dataset_yaml)
+
+
 
 with open("template-imageset.yaml", 'r') as imageset_template_file:
     imageset_template = imageset_template_file.read()
 
+
+#TODO: Choice of camera
+camera_label = "RGB_3D_3D_side_far_0"
+
 paths = "    - /images/" + lemnatec_df["{}_path".format(camera_label)].dropna()
 paths = paths.str.cat(sep="\n")
-#TODO: Choice of camera
 imageset_yaml = imageset_template.format(paths=paths, path_column=camera_label, collection_id=collection_obj['id'], dataset_id=collection_obj['dataset_id'])
 
 with open("imageset.yaml", "w") as text_file:
