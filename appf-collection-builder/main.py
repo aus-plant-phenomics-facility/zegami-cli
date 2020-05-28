@@ -101,17 +101,18 @@ headers = {'Authorization': 'Bearer {}'.format(token)}
 response = requests.get(url, headers=headers)
 response_data = response.json()
 
+collection_obj = None
 for i in range(0, len(response_data['collections'])):
     if response_data['collections'][i]['name'] == measurement_label:
-        print(response_data['collections'][i])
+        print(response_data['collections'][i],flush=True)
         collection_obj = response_data['collections'][i]
 
-if not collection_obj:
+if collection_obj is None:
+
     data = {
         "name": measurement_label,
         "description": db_name + " " + measurement_label,
         "deepzoom_version": 2
-
     }
 
     url = "https://zegami.com/api/v0/project/OVdSdE5n/collections/"
@@ -121,9 +122,7 @@ if not collection_obj:
     response = requests.post(url, json=data, headers=headers)
     response_data = response.json()
     collection_obj = response_data['collection']
-    print(response_data)
-#
-
+    print(response_data,flush=True)
 
 
 with open("template-dataset.yaml", 'r') as dataset_template_file:
