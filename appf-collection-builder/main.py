@@ -183,13 +183,15 @@ with open("dataset.yaml", "w") as text_file:
 with open("template-imageset.yaml", 'r') as imageset_template_file:
     imageset_template = imageset_template_file.read()
 
-exit()
-
-
 #TODO: Choice of camera
-camera_label = "RGB_3D_3D_side_far_0"
+if data_source == SRC_FILE:
+    camera_label = "RGB SV1"
+    paths = "    - /images/" + lemnatec_df["{} image path".format(camera_label)].dropna()
 
-paths = "    - /images/" + lemnatec_df["{}_path".format(camera_label)].dropna()
+elif data_source == SRC_DATABASE:
+    camera_label = "RGB_3D_3D_side_far_0"
+    paths = "    - /images/" + lemnatec_df["{}_path".format(camera_label)].dropna()
+
 paths = paths.str.cat(sep="\n")
 imageset_yaml = imageset_template.format(paths=paths, path_column=camera_label, collection_id=collection_obj['id'], dataset_id=collection_obj['dataset_id'])
 
