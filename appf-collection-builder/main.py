@@ -23,14 +23,13 @@ if data_source == SRC_FILE:
         print(i, f)
     file_selection = int(input("Select File:"))
 
-    with open(os.path.join("/data_source",files[file_selection]), "r") as data_input_file:
-        print(data_input_file.read())
-
-    collection_name = files[file_selection]
     db_name = None
+    collection_name = files[file_selection]
+    input_file_path = os.path.join("/data_source",collection_name)
 
+    lemnatec_df = pandas.read_csv(input_file_path)
+    print(lemnatec_df[1:10])
 
-    exit()
 
 
 
@@ -166,21 +165,25 @@ if collection_obj is None:
 
 
 if data_source == SRC_FILE:
-    pass
+    with open("template-dataset-file.yaml", 'r') as dataset_template_file:
+        dataset_template = dataset_template_file.read()
+
+    dataset_yaml = dataset_template.format(input_file_path=input_file_path)
 
 elif data_source == SRC_DATABASE:
-    with open("template-dataset.yaml", 'r') as dataset_template_file:
+    with open("template-dataset-db.yaml", 'r') as dataset_template_file:
         dataset_template = dataset_template_file.read()
 
     dataset_yaml = dataset_template.format(database=db_name, query=query.replace("\n",""), user=user, password=password, host=TPA_PLANTDB)
 
-    with open("dataset.yaml", "w") as text_file:
-        text_file.write(dataset_yaml)
-
+with open("dataset.yaml", "w") as text_file:
+    text_file.write(dataset_yaml)
 
 
 with open("template-imageset.yaml", 'r') as imageset_template_file:
     imageset_template = imageset_template_file.read()
+
+exit()
 
 
 #TODO: Choice of camera
