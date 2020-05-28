@@ -4,7 +4,7 @@ import requests
 from getpass import getpass
 from zeg.__main__ import main as zeg
 import sys
-
+import os
 
 SRC_FILE = 1
 SRC_DATABASE = 2
@@ -17,9 +17,7 @@ data_source = int(input("File [1] or Database[2]?"))
 
 
 
-if data_source == FILE:
-    collection_name = file
-    db_name = None
+if data_source == SRC_FILE:
     files = os.listdir("/data_source")
     for i, f in enumerate(files):
         print(i, f)
@@ -27,11 +25,17 @@ if data_source == FILE:
 
     with open(os.path.join("/data_source",files[file_selection]), "r") as data_input_file:
         print(data_input_file.read())
+
+    collection_name = files[file_selection]
+    db_name = None
+
+
     exit()
 
 
 
-elif data_source == DATABASE:
+
+elif data_source == SRC_DATABASE:
     TPA_PLANTDB = "192.168.0.24"
     #TPA_PLANTDB = "tpa-plantdb.plantphenomics.org.au"
 
@@ -162,6 +166,7 @@ if collection_obj is None:
 
 
 if data_source == SRC_FILE:
+    pass
 
 elif data_source == SRC_DATABASE:
     with open("template-dataset.yaml", 'r') as dataset_template_file:
