@@ -23,12 +23,12 @@ if data_source == SRC_FILE:
         print(i, f)
     file_selection = int(input("Select File:"))
 
-    db_name = None
+    db_name = ""
     collection_name = files[file_selection]
     input_file_path = os.path.join("/data_source",collection_name)
 
     lemnatec_df = pd.read_csv(input_file_path)
-    print(lemnatec_df[1:10])
+#    print(lemnatec_df[1:10])
 
 
 
@@ -113,11 +113,6 @@ elif data_source == SRC_DATABASE:
 
 else:
     print("Invalid data source selection.")
-    exit()
-
-
-
-
 
 
 
@@ -186,14 +181,31 @@ with open("template-imageset.yaml", 'r') as imageset_template_file:
 #TODO: Choice of camera
 if data_source == SRC_FILE:
     camera_label = "RGB SV1"
-    paths = "    - /images/" + lemnatec_df["{} image path".format(camera_label)].dropna()
+    for path in lemnatec_df["{} image path".format(camera_label)]:
+        t_path = os.path.join("/images/plantdb/tpa_backup", path)
+        print(t_path)
+        print(os.stat(t_path))
+
+    exit()
+
+    paths = "    - /images/plantdb/tpa_backup/" + lemnatec_df["{} image path".format(camera_label)].dropna()
+    paths = paths.str.cat(sep="\n")
+    imageset_yaml = imageset_template.format(paths=paths, path_column="{} image path".format(camera_label), collection_id=collection_obj['id'], dataset_id=collection_obj['dataset_id'])
+    #print(paths)
+    #for path in paths:
+    #    os.stat(path)
+
 
 elif data_source == SRC_DATABASE:
     camera_label = "RGB_3D_3D_side_far_0"
     paths = "    - /images/" + lemnatec_df["{}_path".format(camera_label)].dropna()
+    paths = paths.str.cat(sep="\n")
+    imageset_yaml = imageset_template.format(paths=paths, path_column=camera_label, collection_id=collection_obj['id'], dataset_id=collection_obj['dataset_id'])
 
-paths = paths.str.cat(sep="\n")
-imageset_yaml = imageset_template.format(paths=paths, path_column=camera_label, collection_id=collection_obj['id'], dataset_id=collection_obj['dataset_id'])
+#print(lemnatec_df['RGB SV1 image path'])]
+#print(paths)
+
+print(imageset_yaml)
 
 with open("imageset.yaml", "w") as text_file:
     text_file.write(imageset_yaml)
