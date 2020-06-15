@@ -9,17 +9,17 @@ import os
 SRC_FILE = 1
 SRC_DATABASE = 2
 
+
 auto = False
 
 if len(sys.argv > 1):
-    if sys.argv[1] == "auto"
+    if sys.argv[1] == "auto":
         data_source = SRC_DATABASE
         auto=True
 
 else:
     # File or Database
     data_source = int(input("File [1] or Database[2]?"))
-
 #TODO:  Is image source different?
 
 
@@ -44,7 +44,6 @@ if data_source == SRC_FILE:
 
 elif data_source == SRC_DATABASE:
     TPA_PLANTDB = "192.168.0.24"
-    #TPA_PLANTDB = "tpa-plantdb.plantphenomics.org.au"
 
     user = "readonlyuser"
     password = "readonlyuser"
@@ -238,10 +237,6 @@ elif data_source == SRC_DATABASE:
     paths = paths.str.cat(sep="\n")
     imageset_yaml = imageset_template.format(paths=paths, path_column=camera_label, collection_id=collection_obj['id'], dataset_id=collection_obj['dataset_id'])
 
-#print(lemnatec_df['RGB SV1 image path'])]
-#print(paths)
-
-print(imageset_yaml)
 
 with open("imageset.yaml", "w") as text_file:
     text_file.write(imageset_yaml)
