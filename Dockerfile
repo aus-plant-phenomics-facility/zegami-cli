@@ -39,4 +39,4 @@ COPY appf-collection-builder /zegami-cli/appf-collection-builder
 
 WORKDIR "/zegami-cli/appf-collection-builder"
 
-ENTRYPOINT ["python3","-u","main.py"]
+ENTRYPOINT ["python3","-u","main_auto.py"]

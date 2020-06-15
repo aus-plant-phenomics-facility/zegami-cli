@@ -1,6 +1,0 @@
-# The type of data set. For now this needs to be set to 'file'
-dataset_type: sql
-# Config for the sql data set type
-sql_config:
-    connection: "postgresql://{user}:{password}@{host}:5432/{database}?sslmode=disable"
-    query: {query}
