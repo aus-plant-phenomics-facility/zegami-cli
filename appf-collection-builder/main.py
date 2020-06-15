@@ -9,9 +9,16 @@ import os
 SRC_FILE = 1
 SRC_DATABASE = 2
 
+auto = False
 
-# File or Database
-data_source = int(input("File [1] or Database[2]?"))
+if len(sys.argv > 1):
+    if sys.argv[1] == "auto"
+        data_source = SRC_DATABASE
+        auto=True
+
+else:
+    # File or Database
+    data_source = int(input("File [1] or Database[2]?"))
 
 #TODO:  Is image source different?
 
