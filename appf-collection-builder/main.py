@@ -18,7 +18,7 @@ data_source = int(input("File [1] or Database[2]?"))
 
 
 if data_source == SRC_FILE:
-    files = os.listdir("/data_source")
+    files = sorted(os.listdir("/data_source"))
     for i, f in enumerate(files):
         print(i, f)
     file_selection = int(input("Select File:"))
@@ -26,6 +26,7 @@ if data_source == SRC_FILE:
     db_name = ""
     collection_name = files[file_selection]
     input_file_path = os.path.join("/data_source",collection_name)
+    input_filename = collection_name[:-4]
 
     lemnatec_df = pd.read_csv(input_file_path)
 #    print(lemnatec_df[1:10])
@@ -116,8 +117,13 @@ else:
 
 
 
-zeg_username = input('Username: ')
-zeg_password = getpass()
+#zeg_username = input('Username: ')
+#zeg_password = getpass()
+
+#TODO: try/catch environment variable existence. if not prompt
+zeg_username = os.environ['USERNAME']
+zeg_password = os.environ['PASSWORD']
+
 
 data = {
     "username": zeg_username,
@@ -138,7 +144,7 @@ response_data = response.json()
 collection_obj = None
 for i in range(0, len(response_data['collections'])):
     if response_data['collections'][i]['name'] == collection_name:
-        print(response_data['collections'][i],flush=True)
+        #print(response_data['collections'][i],flush=True)
         collection_obj = response_data['collections'][i]
 
 if collection_obj is None:
@@ -157,7 +163,19 @@ if collection_obj is None:
     response_data = response.json()
     collection_obj = response_data['collection']
     print(response_data,flush=True)
+else:
+#    print(collection_obj)
+#    args = "zeg get dataset {dataset_id} --project OVdSdE5n --token {token}".format(dataset_id=collection_obj['dataset_id'], token=token)
+#    sys.argv = args.split()
+#    output = zeg()
+#    print(output)
 
+    url = "https://zegami.com/api/v0/project/OVdSdE5n/imagesets/{}".format(collection_obj['imageset_id'])
+    headers = {'Authorization': 'Bearer {}'.format(token)}
+    response = requests.get(url, headers=headers)
+    response_data = response.json()
+
+    existing_images = [i['name'] for i in response_data['imageset']['images']]
 
 if data_source == SRC_FILE:
     with open("template-dataset-file.yaml", 'r') as dataset_template_file:
@@ -181,16 +199,18 @@ with open("template-imageset.yaml", 'r') as imageset_template_file:
 #TODO: Choice of camera
 if data_source == SRC_FILE:
     camera_label = "RGB SV1"
-    for path in lemnatec_df["{} image path".format(camera_label)]:
-        t_path = os.path.join("/images/plantdb/tpa_backup", path)
+    image_path_column = "{} image path".format(camera_label)
+    if image_path_column not in lemnatec_df.columns:
+        image_path_column = "RGB_3D_3D_side_far_0"
+
+    for path in lemnatec_df[image_path_column]:
+        t_path = os.path.join("/export_images/plantdb/tpa_backup", input_filename, path)
         print(t_path)
         print(os.stat(t_path))
 
-    exit()
-
-    paths = "    - /images/plantdb/tpa_backup/" + lemnatec_df["{} image path".format(camera_label)].dropna()
+    paths = "    - /export_images/plantdb/tpa_backup/" + input_filename + "/" + lemnatec_df[image_path_column].dropna()
     paths = paths.str.cat(sep="\n")
-    imageset_yaml = imageset_template.format(paths=paths, path_column="{} image path".format(camera_label), collection_id=collection_obj['id'], dataset_id=collection_obj['dataset_id'])
+    imageset_yaml = imageset_template.format(paths=paths, path_column=image_path_column, collection_id=collection_obj['id'], dataset_id=collection_obj['dataset_id'])
     #print(paths)
     #for path in paths:
     #    os.stat(path)
@@ -198,7 +218,16 @@ if data_source == SRC_FILE:
 
 elif data_source == SRC_DATABASE:
     camera_label = "RGB_3D_3D_side_far_0"
-    paths = "    - /images/" + lemnatec_df["{}_path".format(camera_label)].dropna()
+    image_path_column = "{}_path".format(camera_label)
+
+    lemnatec_df['image_filenames_only'] = lemnatec_df[image_path_column].str.extract(r'(blob\d+)')
+    #print(len(lemnatec_df[image_path_column]))
+    lemnatec_df = lemnatec_df[~lemnatec_df['image_filenames_only'].isin(existing_images)]
+    #print(len(lemnatec_df[image_path_column]))
+
+    #exit()
+
+    paths = "    - /prod_images/" + db_name + "/" + lemnatec_df[image_path_column].dropna()
     paths = paths.str.cat(sep="\n")
     imageset_yaml = imageset_template.format(paths=paths, path_column=camera_label, collection_id=collection_obj['id'], dataset_id=collection_obj['dataset_id'])
 
