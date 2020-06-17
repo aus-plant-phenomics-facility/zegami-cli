@@ -76,8 +76,8 @@ def find_or_create_collection(token, db_name, collection_name):
         response = requests.post(url, json=data, headers=headers)
         response_data = response.json()
         collection_obj = response_data['collection']
-        return collection_obj
-        #print(response_data, flush=True)
+       
+    return collection_obj
 
 
 def upload_imageset_from_file(collection_obj, collection_name, token):
@@ -152,31 +152,45 @@ def upload_imageset_from_database(collection_obj, db_name, query, token):
     headers = {'Authorization': 'Bearer {}'.format(token)}
     response = requests.get(url, headers=headers)
     response_data = response.json()
-    existing_images = [i['name'] for i in response_data['imageset']['images']]
 
+    existing_images = []
+    if 'imageset' in response_data:
+        if 'images' in response_data['imageset']:
+            existing_images = [i['name'] for i in response_data['imageset']['images']]
     camera_label = "RGB_3D_3D_side_far_0"
     image_path_column = "{}_path".format(camera_label)
 
     lemnatec_data = query_database(db_name, query)
     lemnatec_df = pd.DataFrame(lemnatec_data)
 
-    lemnatec_df['image_filenames_only'] = lemnatec_df[image_path_column].str.extract(r'(blob\d+)')
-    lemnatec_df = lemnatec_df[~lemnatec_df['image_filenames_only'].isin(existing_images)]
-    paths = "    - /prod_images/" + db_name + "/" + lemnatec_df[image_path_column].dropna()
-    paths = paths.str.cat(sep="\n")
+    #print(lemnatec_df)
 
-    with open("template-imageset.yaml", 'r') as imageset_template_file:
-        imageset_template = imageset_template_file.read()
-    imageset_yaml = imageset_template.format(paths=paths, path_column=camera_label,
-                                             collection_id=collection_obj['id'],
-                                             dataset_id=collection_obj['dataset_id'])
-    with open("imageset.yaml", "w") as text_file:
-        text_file.write(imageset_yaml)
-    with open("imageset-upload.sh", 'r') as imageset_upload_file:
-        imageset_upload = imageset_upload_file.read()
-    args = imageset_upload.format(imageset_id=collection_obj['imageset_id'], token=token)
-    sys.argv = args.split()
-    zeg()
+
+    if camera_label in lemnatec_df.columns:
+
+        lemnatec_df['image_filenames_only'] = lemnatec_df[image_path_column].str.extract(r'(blob\d+)')
+        lemnatec_df = lemnatec_df[~lemnatec_df['image_filenames_only'].isin(existing_images)]
+        if(len(lemnatec_df[image_path_column].dropna()) > 0):
+            paths = "    - /prod_images/" + db_name + "/" + lemnatec_df[image_path_column].dropna()
+            #print(paths)
+            paths = paths.str.cat(sep="\n")
+
+            #print(paths)
+
+            with open("template-imageset.yaml", 'r') as imageset_template_file:
+                imageset_template = imageset_template_file.read()
+            imageset_yaml = imageset_template.format(paths=paths, path_column=camera_label,
+                                                 collection_id=collection_obj['id'],
+                                                 dataset_id=collection_obj['dataset_id'])
+            with open("imageset.yaml", "w") as text_file:
+                text_file.write(imageset_yaml)
+            with open("imageset-upload.sh", 'r') as imageset_upload_file:
+                imageset_upload = imageset_upload_file.read()
+            #print(imageset_yaml)
+            #print(imageset_upload)
+            args = imageset_upload.format(imageset_id=collection_obj['imageset_id'], token=token)
+            sys.argv = args.split()
+            zeg()
 
 
 def upload_dataset_from_database(collection_obj, db_name, query, token):
@@ -198,7 +212,7 @@ def upload_dataset_from_database(collection_obj, db_name, query, token):
 def main():
     token = get_zegami_token()
 
-    if len(sys.argv > 1):
+    if len(sys.argv) > 1:
         if sys.argv[1] == "auto":
 
             prod_databases = query_database("LTSystem", "SELECT name FROM ltdbs;")
@@ -215,14 +229,22 @@ def main():
                 for ml_record in measurement_labels:
                     measurement_label = ml_record['measurement_label']
                     imaging_day = ml_record['imaging_day']
+                    print(measurement_label)
 
                     collection_obj = find_or_create_collection(token, db_name, measurement_label)
+
+                    #print(collection_obj)
 
                     query = prepare_database_query(db_name, imaging_day, measurement_label)
 
                     upload_dataset_from_database(collection_obj, db_name, query, token)
 
+                    print("uploaded data")
+
                     upload_imageset_from_database(collection_obj, db_name, query, token)
+
+                    print("uploaded images")
+
 
     else:
         data_source = int(input("File [1] or Database[2]?"))
