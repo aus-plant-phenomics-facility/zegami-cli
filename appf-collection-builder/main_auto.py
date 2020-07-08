@@ -240,7 +240,7 @@ def main():
                                                             "WHERE measurement_label in (%s))"
                                                             "GROUP BY measurement_label "
                                                             "ORDER by measurement_label;",
-                                       [project_mls, ])
+                                       [list(project_mls.itertuples(index=False, name=None)), ])
 
 
 
