@@ -240,7 +240,13 @@ def main():
 
                         project_mls = project_mls_df.loc[project_mls_df['database'] == db_name]["measurement_label"]
 
+                        print(measurement_labels)
+
                         measurement_labels = [ml for ml in measurement_labels if ml['measurement_label'] in project_mls]
+
+                        print(measurement_labels)
+                        print(project_mls)
+
 
                     for ml_record in measurement_labels:
                         measurement_label = ml_record['measurement_label']
