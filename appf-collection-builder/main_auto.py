@@ -219,7 +219,7 @@ def main():
     if len(sys.argv) > 1:
         if sys.argv[1] == "auto":
 
-            projects = ["OVdSdE5n", "iCFLiDym"]
+            projects = ["iCFLiDym", "OVdSdE5n"]
 
             for project in projects:
 
