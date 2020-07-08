@@ -16,22 +16,7 @@ password = "readonlyuser"
 
 # prepare dataset from file
 
-def upload_dataset_from_file(collection_name, dataset_upload_id, token):
-    input_file_path = os.path.join("/data_source", collection_name)
 
-    with open("template-dataset-file.yaml", 'r') as dataset_template_file:
-        dataset_template = dataset_template_file.read()
-
-    dataset_yaml = dataset_template.format(input_file_path=input_file_path)
-    with open("dataset.yaml", "w") as text_file:
-        text_file.write(dataset_yaml)
-
-    with open("dataset-upload.sh", 'r') as dataset_upload_file:
-        dataset_upload = dataset_upload_file.read()
-
-    args = dataset_upload.format(dataset_upload_id=dataset_upload_id, token=token)
-    sys.argv = args.split()
-    zeg()
 
 def get_zegami_token():
     zeg_username = os.environ['USERNAME']
@@ -50,8 +35,8 @@ def get_zegami_token():
     return token
 
 
-def find_or_create_collection(token, db_name, collection_name):
-    url = "https://zegami.com/api/v0/project/OVdSdE5n/collections/"
+def find_or_create_collection(token, db_name, collection_name, project):
+    url = "https://zegami.com/api/v0/project/{}/collections/".format(project)
     headers = {'Authorization': 'Bearer {}'.format(token)}
     response = requests.get(url, headers=headers)
     response_data = response.json()
@@ -69,7 +54,7 @@ def find_or_create_collection(token, db_name, collection_name):
             "deepzoom_version": 2
         }
 
-        url = "https://zegami.com/api/v0/project/OVdSdE5n/collections/"
+        url = "https://zegami.com/api/v0/project/{}/collections/".format(project)
 
         headers = {'Content-type': 'application/json', 'Authorization': 'Bearer {}'.format(token)}
 
@@ -79,39 +64,6 @@ def find_or_create_collection(token, db_name, collection_name):
        
     return collection_obj
 
-
-def upload_imageset_from_file(collection_obj, collection_name, token):
-    input_filename = collection_name[:-4]
-    input_file_path = os.path.join("/data_source", collection_name)
-
-    lemnatec_df = pd.read_csv(input_file_path)
-
-    with open("template-imageset.yaml", 'r') as imageset_template_file:
-        imageset_template = imageset_template_file.read()
-
-    camera_label = "RGB SV1"
-    image_path_column = "{} image path".format(camera_label)
-    if image_path_column not in lemnatec_df.columns:
-        image_path_column = "RGB_3D_3D_side_far_0"
-
-    for path in lemnatec_df[image_path_column]:
-        t_path = os.path.join("/export_images/plantdb/tpa_backup", input_filename, path)
-        print(t_path)
-        print(os.stat(t_path))
-
-    paths = "    - /export_images/plantdb/tpa_backup/" + input_filename + "/" + lemnatec_df[image_path_column].dropna()
-    paths = paths.str.cat(sep="\n")
-    imageset_yaml = imageset_template.format(paths=paths, path_column=image_path_column, collection_id=collection_obj['id'], dataset_id=collection_obj['dataset_id'])
-
-    with open("imageset.yaml", "w") as text_file:
-        text_file.write(imageset_yaml)
-
-    with open("imageset-upload.sh", 'r') as imageset_upload_file:
-        imageset_upload = imageset_upload_file.read()
-
-    args = imageset_upload.format(imageset_id=collection_obj['imageset_id'], token=token)
-    sys.argv = args.split()
-    zeg()
 
 def query_database(db_name, query, params=None):
     # dbname – the database name (database is a deprecated alias)
@@ -146,9 +98,26 @@ def prepare_database_query(db_name, imaging_day, measurement_label):
                                           metadata_view_fields=metadata_view_fields)
     return query
 
+def upload_dataset_from_database(collection_obj, db_name, query, token, project):
 
-def upload_imageset_from_database(collection_obj, db_name, query, token):
-    url = "https://zegami.com/api/v0/project/OVdSdE5n/imagesets/{}".format(collection_obj['imageset_id'])
+    with open("template-dataset-db.yaml", 'r') as dataset_template_file:
+        dataset_template = dataset_template_file.read()
+    dataset_yaml = dataset_template.format(database=db_name, query=query.replace("\n", ""), user=user,
+                                           password=password, host=TPA_PLANTDB)
+    with open("dataset.yaml", "w") as text_file:
+        text_file.write(dataset_yaml)
+
+    with open("dataset-upload.sh", 'r') as dataset_upload_file:
+        dataset_upload = dataset_upload_file.read()
+    args = dataset_upload.format(dataset_upload_id=collection_obj['upload_dataset_id'], token=token, project=project)
+    sys.argv = args.split()
+    zeg()
+
+
+
+
+def upload_imageset_from_database(collection_obj, db_name, query, token, project):
+    url = "https://zegami.com/api/v0/project/{project}/imagesets/{imageset_id}".format(project=project, imageset_id=collection_obj['imageset_id'])
     headers = {'Authorization': 'Bearer {}'.format(token)}
     response = requests.get(url, headers=headers)
     response_data = response.json()
@@ -188,23 +157,60 @@ def upload_imageset_from_database(collection_obj, db_name, query, token):
                 imageset_upload = imageset_upload_file.read()
             #print(imageset_yaml)
             #print(imageset_upload)
-            args = imageset_upload.format(imageset_id=collection_obj['imageset_id'], token=token)
+            args = imageset_upload.format(imageset_id=collection_obj['imageset_id'], token=token, project=project)
             sys.argv = args.split()
             zeg()
 
 
-def upload_dataset_from_database(collection_obj, db_name, query, token):
 
-    with open("template-dataset-db.yaml", 'r') as dataset_template_file:
+def upload_dataset_from_file(collection_name, dataset_upload_id, token, project):
+    input_file_path = os.path.join("/data_source", collection_name)
+
+    with open("template-dataset-file.yaml", 'r') as dataset_template_file:
         dataset_template = dataset_template_file.read()
-    dataset_yaml = dataset_template.format(database=db_name, query=query.replace("\n", ""), user=user,
-                                           password=password, host=TPA_PLANTDB)
+
+    dataset_yaml = dataset_template.format(input_file_path=input_file_path)
     with open("dataset.yaml", "w") as text_file:
         text_file.write(dataset_yaml)
 
     with open("dataset-upload.sh", 'r') as dataset_upload_file:
         dataset_upload = dataset_upload_file.read()
-    args = dataset_upload.format(dataset_upload_id=collection_obj['upload_dataset_id'], token=token)
+
+    args = dataset_upload.format(dataset_upload_id=dataset_upload_id, token=token, project=project)
+    sys.argv = args.split()
+    zeg()
+
+
+def upload_imageset_from_file(collection_obj, collection_name, token, project):
+    input_filename = collection_name[:-4]
+    input_file_path = os.path.join("/data_source", collection_name)
+
+    lemnatec_df = pd.read_csv(input_file_path)
+
+    with open("template-imageset.yaml", 'r') as imageset_template_file:
+        imageset_template = imageset_template_file.read()
+
+    camera_label = "RGB SV1"
+    image_path_column = "{} image path".format(camera_label)
+    if image_path_column not in lemnatec_df.columns:
+        image_path_column = "RGB_3D_3D_side_far_0"
+
+    for path in lemnatec_df[image_path_column]:
+        t_path = os.path.join("/export_images/plantdb/tpa_backup", input_filename, path)
+        print(t_path)
+        print(os.stat(t_path))
+
+    paths = "    - /export_images/plantdb/tpa_backup/" + input_filename + "/" + lemnatec_df[image_path_column].dropna()
+    paths = paths.str.cat(sep="\n")
+    imageset_yaml = imageset_template.format(paths=paths, path_column=image_path_column, collection_id=collection_obj['id'], dataset_id=collection_obj['dataset_id'])
+
+    with open("imageset.yaml", "w") as text_file:
+        text_file.write(imageset_yaml)
+
+    with open("imageset-upload.sh", 'r') as imageset_upload_file:
+        imageset_upload = imageset_upload_file.read()
+
+    args = imageset_upload.format(imageset_id=collection_obj['imageset_id'], token=token, project=project)
     sys.argv = args.split()
     zeg()
 
@@ -215,38 +221,49 @@ def main():
     if len(sys.argv) > 1:
         if sys.argv[1] == "auto":
 
-            prod_databases = query_database("LTSystem", "SELECT name FROM ltdbs;")
+            projects = ["OVdSdE5n", "iCFLiDym"]
 
-            for db_record in prod_databases:
-                db_name = db_record['name']
-                print("{}".format(db_name))
+            for project in projects:
 
-                measurement_labels = query_database(db_name, "SELECT measurement_label, min(time_stamp) AS imaging_day "
-                                                         "FROM snapshot "
-                                                         "GROUP BY measurement_label "
-                                                         "ORDER by measurement_label;")
+                prod_databases = query_database("LTSystem", "SELECT name FROM ltdbs;")
 
-                for ml_record in measurement_labels:
-                    measurement_label = ml_record['measurement_label']
-                    imaging_day = ml_record['imaging_day']
-                    print(measurement_label)
+                for db_record in prod_databases:
+                    db_name = db_record['name']
+                    print("{}".format(db_name))
 
-                    collection_obj = find_or_create_collection(token, db_name, measurement_label)
+                    measurement_labels = query_database(db_name, "SELECT measurement_label, min(time_stamp) AS imaging_day "
+                                                             "FROM snapshot "
+                                                             "GROUP BY measurement_label "
+                                                             "ORDER by measurement_label;")
 
-                    #print(collection_obj)
+                    if project != "OVdSdE5n":
+                        project_mls_df = pd.read_csv(os.path.join("project",project))
 
-                    query = prepare_database_query(db_name, imaging_day, measurement_label)
+                        measurement_labels = [ml for ml in measurement_labels if ml in project_mls_df.loc[project_mls_df['database'] == db_name]["measurement_label"]]
 
-                    upload_dataset_from_database(collection_obj, db_name, query, token)
+                    for ml_record in measurement_labels:
+                        measurement_label = ml_record['measurement_label']
+                        imaging_day = ml_record['imaging_day']
+                        print(measurement_label)
 
-                    print("uploaded data")
+                        collection_obj = find_or_create_collection(token, db_name, measurement_label, project)
 
-                    upload_imageset_from_database(collection_obj, db_name, query, token)
+                        #print(collection_obj)
 
-                    print("uploaded images")
+                        query = prepare_database_query(db_name, imaging_day, measurement_label)
+
+                        upload_dataset_from_database(collection_obj, db_name, query, token, project)
+
+                        print("uploaded data")
+
+                        upload_imageset_from_database(collection_obj, db_name, query, token, project)
+
+                        print("uploaded images")
 
 
     else:
+        project = "OVdSdE5n"
+
         data_source = int(input("File [1] or Database[2]?"))
         if data_source == SRC_FILE:
             files = sorted(os.listdir("/data_source"))
@@ -257,11 +274,11 @@ def main():
             db_name = ""
             collection_name = files[file_selection]
 
-            collection_obj = find_or_create_collection(token, db_name, collection_name)
+            collection_obj = find_or_create_collection(token, db_name, collection_name, project)
 
-            upload_dataset_from_file(collection_name, collection_obj['upload_dataset_id'], token)
+            upload_dataset_from_file(collection_name, collection_obj['upload_dataset_id'], token, project)
 
-            upload_imageset_from_file(collection_obj, collection_name, token)
+            upload_imageset_from_file(collection_obj, collection_name, token, project)
         elif data_source == SRC_DATABASE:
             prod_databases = query_database("LTSystem", "SELECT name FROM ltdbs;")
 
@@ -284,15 +301,13 @@ def main():
             measurement_label = measurement_labels[ml]['measurement_label']
             imaging_day = measurement_labels[ml]['imaging_day']
 
-            collection_obj = find_or_create_collection(token, db_name, measurement_label)
+            collection_obj = find_or_create_collection(token, db_name, measurement_label, project)
 
             query = prepare_database_query(db_name, imaging_day, measurement_label)
 
-            upload_dataset_from_database(collection_obj, db_name, query, token)
+            upload_dataset_from_database(collection_obj, db_name, query, token, project)
 
-            upload_imageset_from_database(collection_obj, db_name, query, token)
-
-
+            upload_imageset_from_database(collection_obj, db_name, query, token, project)
 
         else:
             print("Invalid data source selection.")
