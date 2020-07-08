@@ -229,23 +229,29 @@ def main():
                     db_name = db_record['name']
                     print("{}".format(db_name))
 
-                    measurement_labels = query_database(db_name,
-                                                        "SELECT measurement_label, min(time_stamp) AS imaging_day "
-                                                        "FROM snapshot "
-                                                        "GROUP BY measurement_label "
-                                                        "ORDER by measurement_label;")
 
                     if project != "OVdSdE5n":
                         project_mls_df = pd.read_csv(os.path.join("/projects", project))
 
                         project_mls = project_mls_df.loc[project_mls_df['database'] == db_name]["measurement_label"]
 
-                        print(measurement_labels)
+                        measurement_labels = query_database(db_name, "SELECT measurement_label, min(time_stamp) AS imaging_day "
+                                                            "FROM snapshot "
+                                                            "WHERE measurement_label in (%s))"
+                                                            "GROUP BY measurement_label "
+                                                            "ORDER by measurement_label;",
+                                       [project_mls, ])
 
-                        measurement_labels = [ml for ml in measurement_labels if ml['measurement_label'] in project_mls]
 
-                        print(measurement_labels)
-                        print(project_mls)
+
+                    else:
+                        measurement_labels = query_database(db_name,
+                                                        "SELECT measurement_label, min(time_stamp) AS imaging_day "
+                                                        "FROM snapshot "
+                                                        "GROUP BY measurement_label "
+                                                        "ORDER by measurement_label;")
+
+
 
 
                     for ml_record in measurement_labels:
