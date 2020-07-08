@@ -238,9 +238,9 @@ def main():
                     if project != "OVdSdE5n":
                         project_mls_df = pd.read_csv(os.path.join("/projects", project))
 
-                        measurement_labels = [ml for ml in measurement_labels if
-                                              ml in project_mls_df.loc[project_mls_df['database'] == db_name][
-                                                  "measurement_label"]]
+                        project_mls = project_mls_df.loc[project_mls_df['database'] == db_name]["measurement_label"]
+
+                        measurement_labels = [ml for ml in measurement_labels if ml['measurement_label'] in project_mls]
 
                     for ml_record in measurement_labels:
                         measurement_label = ml_record['measurement_label']
