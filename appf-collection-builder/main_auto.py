@@ -73,7 +73,11 @@ def query_database(db_name, query, params=None):
     # port – connection port number (defaults to 5432 if not provided)
     conn = psycopg2.connect(dbname=db_name, user=user, password=password, host=TPA_PLANTDB)
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    
+#    print(cur.mogrify(query, params))
+
     cur.execute(query, params)
+    
     result = cur.fetchall()
     cur.close()
     conn.close()
@@ -109,9 +113,13 @@ def upload_dataset_from_database(collection_obj, db_name, query, token, project)
 
     with open("dataset-upload.sh", 'r') as dataset_upload_file:
         dataset_upload = dataset_upload_file.read()
+    print("'uploading dataset")
+    print(collection_obj)
     args = dataset_upload.format(dataset_upload_id=collection_obj['upload_dataset_id'], token=token, project=project)
+    print(args)
     sys.argv = args.split()
     zeg()
+    print('uploaded datasets')
 
 
 def upload_imageset_from_database(collection_obj, db_name, query, token, project):
@@ -219,7 +227,7 @@ def main():
     if len(sys.argv) > 1:
         if sys.argv[1] == "auto":
 
-            projects = ["iCFLiDym", "OVdSdE5n"]
+            projects = ["iCFLiDym"]#, "OVdSdE5n"]
 
             for project in projects:
 
@@ -233,14 +241,23 @@ def main():
                     if project != "OVdSdE5n":
                         project_mls_df = pd.read_csv(os.path.join("/projects", project))
 
-                        project_mls = project_mls_df.loc[project_mls_df['database'] == db_name]["measurement_label"]
+                        project_mls_this_db = project_mls_df.loc[project_mls_df['database'] == db_name]["measurement_label"]
 
-                        measurement_labels = query_database(db_name, "SELECT measurement_label, min(time_stamp) AS imaging_day "
-                                                            "FROM snapshot "
-                                                            "WHERE measurement_label in (%s))"
-                                                            "GROUP BY measurement_label "
-                                                            "ORDER by measurement_label;",
-                                       [list(project_mls.itertuples(index=False, name=None)), ])
+                        project_mls = tuple(project_mls_this_db.to_list())
+
+#                        print(project_mls.to_list())
+#                        print(type(project_mls.to_list()))
+
+                        if len(project_mls) < 1:
+                            measurement_labels = []
+
+                        else:
+                            measurement_labels = query_database(db_name, """SELECT measurement_label, min(time_stamp) AS imaging_day
+                                                            FROM snapshot
+                                                            WHERE measurement_label in %s
+                                                            GROUP BY measurement_label
+                                                            ORDER by measurement_label;""",
+                                       (project_mls,))
 
 
 
