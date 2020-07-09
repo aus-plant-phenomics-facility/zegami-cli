@@ -113,13 +113,24 @@ def upload_dataset_from_database(collection_obj, db_name, query, token, project)
 
     with open("dataset-upload.sh", 'r') as dataset_upload_file:
         dataset_upload = dataset_upload_file.read()
-    print("'uploading dataset")
-    print(collection_obj)
     args = dataset_upload.format(dataset_upload_id=collection_obj['upload_dataset_id'], token=token, project=project)
-    print(args)
     sys.argv = args.split()
     zeg()
-    print('uploaded datasets')
+
+    area_columns = ["Projected Shoot Area",
+                    "Side Far Projected Shoot Area",
+                    "Side Lower Projected Shoot Area",
+                    "Side Upper Projected Shoot Area",
+                    "Top Projected Shoot Area"]
+
+    for column in area_columns:
+        url = "https://zegami.com/project/{project}/datasets/{dataset_id}/columns/{column_name}/fields".format(project=project,dataset_id=collection_obj['dataset_id'],column_name=column)
+        data = {"zegami:schema": { "datatype": "integer" }}
+
+        headers = {'Content-type': 'application/json', 'Authorization': 'Bearer {}'.format(token)}
+
+        response = requests.patch(url, json=data, headers=headers)
+
 
 
 def upload_imageset_from_database(collection_obj, db_name, query, token, project):
@@ -140,18 +151,13 @@ def upload_imageset_from_database(collection_obj, db_name, query, token, project
     lemnatec_data = query_database(db_name, query)
     lemnatec_df = pd.DataFrame(lemnatec_data)
 
-    # print(lemnatec_df)
-
     if camera_label in lemnatec_df.columns:
 
         lemnatec_df['image_filenames_only'] = lemnatec_df[image_path_column].str.extract(r'(blob\d+)')
         lemnatec_df = lemnatec_df[~lemnatec_df['image_filenames_only'].isin(existing_images)]
         if len(lemnatec_df[image_path_column].dropna()) > 0:
             paths = "    - /prod_images/" + db_name + "/" + lemnatec_df[image_path_column].dropna()
-            # print(paths)
             paths = paths.str.cat(sep="\n")
-
-            # print(paths)
 
             with open("template-imageset.yaml", 'r') as imageset_template_file:
                 imageset_template = imageset_template_file.read()
