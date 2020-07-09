@@ -134,6 +134,9 @@ def upload_dataset_from_database(collection_obj, db_name, query, token, project)
 
         response = requests.patch(url, json=data, headers=headers)
 
+        print(url)
+        print(response)
+
 
 
 def upload_imageset_from_database(collection_obj, db_name, query, token, project):
