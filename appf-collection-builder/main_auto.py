@@ -126,7 +126,7 @@ def upload_dataset_from_database(collection_obj, db_name, query, token, project)
                     "Top Projected Shoot Area"]
 
     for column in area_columns:
-        url = urllib.parse.quote_plus("https://zegami.com/project/{project}/datasets/{dataset_id}/columns/{column_name}/fields".format(project=project, dataset_id=collection_obj['dataset_id'], column_name=urllib.parse.quote_plus(column)))
+        url = "https://zegami.com/project/{project}/datasets/{dataset_id}/columns/{column_name}/fields".format(project=project, dataset_id=collection_obj['dataset_id'], column_name=urllib.parse.quote_plus(column))
 
         data = {"zegami:schema": { "datatype": "integer" }}
 
