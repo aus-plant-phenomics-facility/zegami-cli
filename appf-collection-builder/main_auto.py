@@ -5,6 +5,8 @@ from getpass import getpass
 from zeg.__main__ import main as zeg
 import sys
 import os
+import urllib.parse
+
 
 SRC_FILE = 1
 SRC_DATABASE = 2
@@ -73,8 +75,6 @@ def query_database(db_name, query, params=None):
     # port – connection port number (defaults to 5432 if not provided)
     conn = psycopg2.connect(dbname=db_name, user=user, password=password, host=TPA_PLANTDB)
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    
-#    print(cur.mogrify(query, params))
 
     cur.execute(query, params)
     
@@ -124,12 +124,15 @@ def upload_dataset_from_database(collection_obj, db_name, query, token, project)
                     "Top Projected Shoot Area"]
 
     for column in area_columns:
-        url = "https://zegami.com/project/{project}/datasets/{dataset_id}/columns/{column_name}/fields".format(project=project,dataset_id=collection_obj['dataset_id'],column_name=column)
+        url = urllib.parse.quote_plus("https://zegami.com/project/{project}/datasets/{dataset_id}/columns/{column_name}/fields".format(project=project,dataset_id=collection_obj['dataset_id'],column_name=column))
+
         data = {"zegami:schema": { "datatype": "integer" }}
 
         headers = {'Content-type': 'application/json', 'Authorization': 'Bearer {}'.format(token)}
 
         response = requests.patch(url, json=data, headers=headers)
+
+        print(response)
 
 
 
