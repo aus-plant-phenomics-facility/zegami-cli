@@ -126,7 +126,7 @@ def upload_dataset_from_database(collection_obj, db_name, query, token, project)
                     "Top Projected Shoot Area"]
 
 
-    url = "https://zegami.com/project/{project}/datasets/{dataset_id}/columns"
+    url = "https://zegami.com/project/{project}/datasets/{dataset_id}/columns".format(project=project, dataset_id=collection_obj['dataset_id'])
     headers = {'Content-type': 'application/json', 'Authorization': 'Bearer {}'.format(token)}
 
     response = requests.get(url, headers=headers)
