@@ -120,20 +120,10 @@ def upload_dataset_from_database(collection_obj, db_name, query, token, project)
     zeg()
 
     area_columns = ["Projected Shoot Area",
-                    "Side Far Projected Shoot Area",
+                    "sideFarprojectedshootarea",#"Side Far Projected Shoot Area",
                     "Side Lower Projected Shoot Area",
                     "Side Upper Projected Shoot Area",
                     "Top Projected Shoot Area"]
-
-
-    url = "https://zegami.com/project/{project}/datasets/{dataset_id}/columns".format(project=project, dataset_id=collection_obj['dataset_id'])
-    headers = {'Content-type': 'application/json', 'Authorization': 'Bearer {}'.format(token)}
-
-    response = requests.get(url, headers=headers)
-
-    print(url)
-    print(response)
-
 
     for column in area_columns:
         url = "https://zegami.com/project/{project}/datasets/{dataset_id}/columns/{column_name}/fields".format(project=project, dataset_id=collection_obj['dataset_id'], column_name=urllib.parse.quote(column))
