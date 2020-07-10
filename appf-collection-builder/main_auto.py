@@ -118,24 +118,6 @@ def upload_dataset_from_database(collection_obj, db_name, query, token, project)
     sys.argv = args.split()
     zeg()
 
-    area_columns = ["Projected Shoot Area",
-                    "sideFarprojectedshootarea",  # "Side Far Projected Shoot Area",
-                    "Side Lower Projected Shoot Area",
-                    "Side Upper Projected Shoot Area",
-                    "Top Projected Shoot Area"]
-
-    for column in area_columns:
-        url = "https://zegami.com/api/v0/project/{project}/datasets/{dataset_id}/columns/{column_name}/fields".format(
-            project=project, dataset_id=collection_obj['dataset_id'], column_name=urllib.parse.quote(column))
-
-        data = {"type": "number", "zegami:schema": {"datatype": "integer"}}
-
-        headers = {'Content-type': 'application/json', 'Authorization': 'Bearer {}'.format(token)}
-
-        response = requests.patch(url, json=data, headers=headers)
-
-        print(response.json())
-
 
 def upload_imageset_from_database(collection_obj, db_name, query, token, project):
     url = "https://zegami.com/api/v0/project/{project}/imagesets/{imageset_id}".format(project=project,
@@ -231,6 +213,25 @@ def upload_imageset_from_file(collection_obj, collection_name, token, project):
     zeg()
 
 
+def fix_datatypes(collection_obj, token, project):
+    area_columns = ["Projected Shoot Area",
+                    "sideFarprojectedshootarea",  # "Side Far Projected Shoot Area",
+                    "Side Lower Projected Shoot Area",
+                    "Side Upper Projected Shoot Area",
+                    "Top Projected Shoot Area"]
+
+    for column in area_columns:
+        url = "https://zegami.com/api/v0/project/{project}/datasets/{dataset_id}/columns/{column_name}/fields".format(
+            project=project, dataset_id=collection_obj['dataset_id'], column_name=urllib.parse.quote(column))
+
+        data = {"type": "number", "zegami:schema": {"datatype": "integer"}}
+
+        headers = {'Content-type': 'application/json', 'Authorization': 'Bearer {}'.format(token)}
+
+        response = requests.patch(url, json=data, headers=headers)
+
+        print(response.json())
+
 def main():
     token = get_zegami_token()
 
@@ -292,6 +293,7 @@ def main():
 
                         print("uploaded images")
 
+                        fix_datatypes(collection_obj, token, project)
     else:
         project = "OVdSdE5n"
 
@@ -339,6 +341,8 @@ def main():
             upload_dataset_from_database(collection_obj, db_name, query, token, project)
 
             upload_imageset_from_database(collection_obj, db_name, query, token, project)
+
+            fix_datatypes(collection_obj, token, project)
 
         else:
             print("Invalid data source selection.")
