@@ -7,7 +7,6 @@ import sys
 import os
 import urllib.parse
 
-
 SRC_FILE = 1
 SRC_DATABASE = 2
 
@@ -76,10 +75,10 @@ def query_database(db_name, query, params=None):
     conn = psycopg2.connect(dbname=db_name, user=user, password=password, host=TPA_PLANTDB)
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-#    print(cur.mogrify(query, params))
+    #    print(cur.mogrify(query, params))
 
     cur.execute(query, params)
-    
+
     result = cur.fetchall()
     cur.close()
     conn.close()
@@ -120,13 +119,14 @@ def upload_dataset_from_database(collection_obj, db_name, query, token, project)
     zeg()
 
     area_columns = ["Projected Shoot Area",
-                    "sideFarprojectedshootarea",#"Side Far Projected Shoot Area",
+                    "sideFarprojectedshootarea",  # "Side Far Projected Shoot Area",
                     "Side Lower Projected Shoot Area",
                     "Side Upper Projected Shoot Area",
                     "Top Projected Shoot Area"]
 
     for column in area_columns:
-        url = "https://zegami.com/api/v0/project/{project}/datasets/{dataset_id}/columns/{column_name}/fields".format(project=project, dataset_id=collection_obj['dataset_id'], column_name=urllib.parse.quote(column))
+        url = "https://zegami.com/api/v0/project/{project}/datasets/{dataset_id}/columns/{column_name}/fields".format(
+            project=project, dataset_id=collection_obj['dataset_id'], column_name=urllib.parse.quote(column))
 
         data = {"zegami:schema": {"datatype": "integer"}}
 
@@ -134,9 +134,7 @@ def upload_dataset_from_database(collection_obj, db_name, query, token, project)
 
         response = requests.patch(url, json=data, headers=headers)
 
-        print(url)
-        print(response)
-
+        print(response.json())
 
 
 def upload_imageset_from_database(collection_obj, db_name, query, token, project):
@@ -249,16 +247,13 @@ def main():
                     db_name = db_record['name']
                     print("{}".format(db_name))
 
-
                     if project != "OVdSdE5n":
                         project_mls_df = pd.read_csv(os.path.join("/projects", project))
 
-                        project_mls_this_db = project_mls_df.loc[project_mls_df['database'] == db_name]["measurement_label"]
+                        project_mls_this_db = project_mls_df.loc[project_mls_df['database'] == db_name][
+                            "measurement_label"]
 
                         project_mls = tuple(project_mls_this_db.to_list())
-
-#                        print(project_mls.to_list())
-#                        print(type(project_mls.to_list()))
 
                         if len(project_mls) < 1:
                             measurement_labels = []
@@ -269,19 +264,16 @@ def main():
                                                             WHERE measurement_label in %s
                                                             GROUP BY measurement_label
                                                             ORDER by measurement_label;""",
-                                       (project_mls,))
+                                                                (project_mls,))
 
 
 
                     else:
                         measurement_labels = query_database(db_name,
-                                                        "SELECT measurement_label, min(time_stamp) AS imaging_day "
-                                                        "FROM snapshot "
-                                                        "GROUP BY measurement_label "
-                                                        "ORDER by measurement_label;")
-
-
-
+                                                            "SELECT measurement_label, min(time_stamp) AS imaging_day "
+                                                            "FROM snapshot "
+                                                            "GROUP BY measurement_label "
+                                                            "ORDER by measurement_label;")
 
                     for ml_record in measurement_labels:
                         measurement_label = ml_record['measurement_label']
@@ -289,8 +281,6 @@ def main():
                         print(measurement_label)
 
                         collection_obj = find_or_create_collection(token, db_name, measurement_label, project)
-
-                        # print(collection_obj)
 
                         query = prepare_database_query(db_name, imaging_day, measurement_label)
 
