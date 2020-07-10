@@ -128,7 +128,7 @@ def upload_dataset_from_database(collection_obj, db_name, query, token, project)
         url = "https://zegami.com/api/v0/project/{project}/datasets/{dataset_id}/columns/{column_name}/fields".format(
             project=project, dataset_id=collection_obj['dataset_id'], column_name=urllib.parse.quote(column))
 
-        data = {"zegami:schema": {"datatype": "integer"}}
+        data = {"type": "number", "zegami:schema": {"datatype": "integer"}}
 
         headers = {'Content-type': 'application/json', 'Authorization': 'Bearer {}'.format(token)}
 
