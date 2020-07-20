@@ -224,13 +224,14 @@ def fix_datatypes(collection_obj, token, project):
         url = "https://zegami.com/api/v0/project/{project}/datasets/{dataset_id}/columns/{column_name}/fields".format(
             project=project, dataset_id=collection_obj['dataset_id'], column_name=urllib.parse.quote(column))
 
-        data = {"type": "number", "zegami:schema": {"datatype": "integer"}}
+        data = {"type": "number", "zegami:schema": {"datatype": "integer", "userDatatype": "integer"}}
 
         headers = {'Content-type': 'application/json', 'Authorization': 'Bearer {}'.format(token)}
 
         response = requests.patch(url, json=data, headers=headers)
 
         print(response.json())
+
 
 def main():
     token = get_zegami_token()
