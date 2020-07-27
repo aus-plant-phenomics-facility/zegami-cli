@@ -230,7 +230,7 @@ def fix_datatypes(collection_obj, token, project):
 
         response = requests.patch(url, json=data, headers=headers)
 
-        print(response.json())
+        #print(response.json())
 
 
 def main():
