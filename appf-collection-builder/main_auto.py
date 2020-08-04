@@ -114,11 +114,9 @@ def upload_dataset_from_database(collection_obj, db_name, query, token, project)
 
     with open("dataset-upload.sh", 'r') as dataset_upload_file:
         dataset_upload = dataset_upload_file.read()
-    print("before zeg()")
     args = dataset_upload.format(dataset_upload_id=collection_obj['upload_dataset_id'], token=token, project=project)
     sys.argv = args.split()
     zeg()
-    print("after zeg()")
 
 
 def upload_imageset_from_database(collection_obj, db_name, query, token, project):

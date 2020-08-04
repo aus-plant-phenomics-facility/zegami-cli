@@ -361,15 +361,6 @@ def _resolve_paths(paths, should_recursive, ignore_mime):
 
     resolved = []
     for path in paths:
-#<<<<<<< HEAD
-#        # this could be rewritten with comprehension and might read more nicely
-#        if os.path.isdir(path):
-#            for root, dirs, files in os.walk(path):
-#                for file in files:
-#                    if file.endswith(allowed_ext):
-#                        resolved.append(os.path.join(root, file))
-#        elif os.path.isfile(path) and path.lower().endswith(allowed_ext):
-#=======
         whitelisted = (path.lower().endswith(allowed_ext) or ignore_mime)
         if os.path.isdir(path):
             if should_recursive:
@@ -384,7 +375,6 @@ def _resolve_paths(paths, should_recursive, ignore_mime):
                     )
                 )
         elif os.path.isfile(path) and whitelisted:
-#>>>>>>> 1a250c41e07de5e141c24ebec4d755d86308ab89
             resolved.append(path)
     return resolved
 
