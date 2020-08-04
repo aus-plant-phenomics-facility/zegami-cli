@@ -37,40 +37,178 @@ def get(log, session, args):
     log.warn('Get imageset command coming soon.')
 
 
+def _get_chunk_upload_futures(
+    executor, paths, session, create_url,
+    complete_url, log, workload_size, offset, mime
+):
+    """Return executable tasks with image uploads in batches.
+
+    Instead of performing image uploads and updating the imageset
+    one at a time, we reduce load on the API server by uploading
+    many images and updating the api server in one go, consequently
+    making upload faster.
+    """
+    total_work = len(paths)
+    workloads = []
+    temp = []
+
+    i = 0
+    while i < total_work:
+        path = paths[i]
+        temp.append(path)
+        i += 1
+        if len(temp) == workload_size or i == total_work:
+            workload_info = {
+                "start": i - len(temp) + offset,
+                "count": len(temp),
+            }
+            workloads.append(executor.submit(
+                _upload_image_chunked,
+                temp,
+                session,
+                create_url,
+                complete_url,
+                log,
+                workload_info,
+                mime
+            ))
+            temp = []
+
+    return workloads
+
+
+def _upload_image_chunked(paths, session, create_url, complete_url, log, workload_info, mime):  # noqa: E501
+    results = []
+
+    # get all signed urls at once
+    try:
+        id_set = {"ids": [str(uuid.uuid4()) for path in paths]}
+        signed_urls = http.post_json(session, create_url, id_set)
+    except Exception as ex:
+        log.error("Could not get signed urls for image uploads: {}".format(ex))
+        return
+
+    index = 0
+    for fpath in paths:
+        try:
+            file_name = os.path.basename(fpath)
+            file_ext = os.path.splitext(fpath)[-1]
+            if mime is not None:
+                file_mime = mime
+            else:
+                file_mime = MIMES.get(file_ext, MIMES['.jpg'])
+        except Exception as ex:
+            log.error("issue with file info: {}".format(ex))
+
+        with open(fpath, 'rb') as f:
+            blob_id = id_set["ids"][index]
+            info = {
+                "image": {
+                    "blob_id": blob_id,
+                    "name": file_name,
+                    "size": os.path.getsize(fpath),
+                    "mimetype": file_mime
+                }
+            }
+            index = index + 1
+            try:
+                # Post file to storage location
+                url = signed_urls[blob_id]
+                # google based signed urls come as a relative path
+                if url.startswith("/"):
+                    url = 'https://storage.googleapis.com{}'.format(url)
+                http.put_file(session, url, f, file_mime)
+                # pop the info into a temp array, upload only once later
+                results.append(info["image"])
+            except Exception as ex:
+                log.error("File upload failed: {}".format(ex))
+
+    # send the chunk of images as a bulk operation rather than per image
+    try:
+        url = complete_url + "?start={}".format(workload_info["start"])
+        log.debug("POSTING TO: {}".format(url))
+        http.post_json(session, url, {'images': results})
+    except Exception as ex:
+        log.error("Failed to complete workload: {}".format(ex))
+
+
 def _update_file_imageset(log, session, configuration):
-    create_url = "{}imagesets/{}/image_url".format(
+    bulk_create_url = "{}signed_blob_url".format(
+        http.get_api_url(configuration["url"], configuration["project"]))
+    bulk_create_url = bulk_create_url.replace('v0', 'v1')
+    complete_url = "{}imagesets/{}/images_bulk".format(
         http.get_api_url(configuration["url"], configuration["project"]),
         configuration["id"])
-    complete_url = "{}imagesets/{}/images".format(
+    extend_url = "{}imagesets/{}/extend".format(
         http.get_api_url(configuration["url"], configuration["project"]),
         configuration["id"])
-    log.debug('POST: {}'.format(create_url))
+    log.debug('POST: {}'.format(extend_url))
+    # log.debug('POST: {}'.format(create_url))
+    log.debug('POST: {}'.format(bulk_create_url))
     log.debug('POST: {}'.format(complete_url))
 
     # get image paths
     file_config = configuration['file_config']
     # check colleciton id, dataset and join column name
 
+    recursive = False
+    mime_type = None
+    if 'recursive' in file_config:
+        recursive = file_config["recursive"]
+
+    if 'mime_type' in file_config:
+        mime_type = file_config["mime_type"]
+
+    # first extend the imageset by the number of items we have to upload
+    paths = _resolve_paths(
+        file_config['paths'], recursive, mime_type is not None
+    )
+
+    extend_response = http.post_json(
+        session, extend_url, {'delta': len(paths)}
+    )
+    add_offset = extend_response['new_size'] - len(paths)
+
+    workload_size = optimal_workload_size(len(paths))
+
+    # When chunking work, futures could contain as much as 100 images at once.
+    # If the number of images does not divide cleanly into 10 or 100 (optimal)
+    # The total may be larger than reality and the image/s speed less accurate.
+    if workload_size != 1:
+        log.warn("The progress bar may have reduced accuracy when uploading larger imagesets.")  # noqa: E501
+
     with concurrent.futures.ThreadPoolExecutor(http.CONCURRENCY) as executor:
-        paths = _resolve_paths(file_config['paths'])
-        futures = [
-            executor.submit(
-                _upload_image,
-                path,
-                session,
-                create_url,
-                complete_url,
-                log,
-            ) for path in paths
-        ]
+        # get bundles that will upload images rather than a future per image
+        futures = _get_chunk_upload_futures(
+            executor,
+            paths,
+            session,
+            bulk_create_url,
+            complete_url,
+            log,
+            workload_size,
+            add_offset,
+            mime_type
+        )
         kwargs = {
             'total': len(futures),
             'unit': 'image',
-            'unit_scale': True,
+            'unit_scale': workload_size,
             'leave': True
         }
         for f in tqdm(concurrent.futures.as_completed(futures), **kwargs):
             pass
+
+
+def optimal_workload_size(count):
+    # Just some sensible values aiming to speed up uploading large imagesets
+    if count > 2500:
+        return 100
+
+    if count < 100:
+        return 1
+
+    return 10
 
 
 def _update_join_dataset(
@@ -79,8 +217,17 @@ def _update_join_dataset(
     dataset_create_url = "{}datasets/".format(
         http.get_api_url(configuration["url"], configuration["project"])
     )
-    log.debug('POST: {}'.format(dataset_create_url))
 
+    collection_url = "{}collections/{}".format(
+        http.get_api_url(configuration["url"], configuration["project"]),
+        collection_id,
+    )
+    log.debug('GET (collection): {}'.format(collection_url))
+    # first need to get the collection object
+    collection_response = http.get(session, collection_url)
+    collection = collection_response['collection']
+
+    # update the join dataset
     join_data = {
         'name': 'join dataset',
         'source': {
@@ -91,20 +238,13 @@ def _update_join_dataset(
             },
         },
     }
-    log.debug('POST (join dataset): {}'.format(dataset_create_url))
-    # create the join dataset
-    join_response = http.post_json(session, dataset_create_url, join_data)
-    collection_url = "{}collections/{}".format(
+    imageset_dataset_join_url = "{}datasets/{}".format(
         http.get_api_url(configuration["url"], configuration["project"]),
-        collection_id,
+        collection["imageset_dataset_join_id"]
     )
-    join_id = join_response['dataset']['id']
-    # update the collection with the new dataset
-    log.debug('GET (collection): {}'.format(collection_url))
+    log.debug('PUT: {}'.format(imageset_dataset_join_url))
+    http.put_json(session, imageset_dataset_join_url, join_data)
 
-    # first need to get the collection object
-    collection_response = http.get(session, collection_url)
-    collection = collection_response['collection']
     dz_json_join_url = "{}datasets/{}".format(
         http.get_api_url(configuration["url"], configuration["project"]),
         collection["dz_json_dataset_id"]
@@ -119,7 +259,7 @@ def _update_join_dataset(
         "name": dz_json_join['dataset']["name"],
         "source": dz_json_join['dataset']["source"],
     }
-    for_create["source"]["dataset_id"] = join_id
+    for_create["source"]["dataset_id"] = collection["imageset_dataset_join_id"]
 
     # Add new dz json dataset, which will become the used one after processing
     log.debug('POST: {}'.format(dataset_create_url))
@@ -127,7 +267,6 @@ def _update_join_dataset(
 
     # TODO wait until processing finished before switching to new dz_json
     # Point collection at new dz json
-    collection['imageset_dataset_join_id'] = join_id
     collection['dz_json_dataset_id'] = dz_json_response["dataset"]['id']
     log.debug('PUT: {}'.format(collection_url))
     http.put_json(session, collection_url, collection)
@@ -176,7 +315,7 @@ def update_from_dict(log, session, configuration):
     elif ims_type == "azure_storage_container":
         if os.environ.get('AZURE_STORAGE_CONNECTION_STRING', None) is None:
             log.error(
-                "The AZURE_STORAGE_CONNECTION_STRING environment variable" +
+                "The AZURE_STORAGE_CONNECTION_STRING environment variable"
                 " must be set in order to create an azure storage collection"
             )
         configuration["url_template"] = azure_blobs.generate_signed_url(
@@ -216,21 +355,49 @@ def delete(log, session, args):
     log.warn('delete imageset command coming soon.')
 
 
-def _resolve_paths(paths):
+def _resolve_paths(paths, should_recursive, ignore_mime):
     """Resolve all paths to a list of files."""
     allowed_ext = tuple(MIMES.keys())
 
     resolved = []
     for path in paths:
-        # this could be rewritten with comprehension and might read more nicely
+#<<<<<<< HEAD
+#        # this could be rewritten with comprehension and might read more nicely
+#        if os.path.isdir(path):
+#            for root, dirs, files in os.walk(path):
+#                for file in files:
+#                    if file.endswith(allowed_ext):
+#                        resolved.append(os.path.join(root, file))
+#        elif os.path.isfile(path) and path.lower().endswith(allowed_ext):
+#=======
+        whitelisted = (path.lower().endswith(allowed_ext) or ignore_mime)
         if os.path.isdir(path):
-            for root, dirs, files in os.walk(path):
-                for file in files:
-                    if file.endswith(allowed_ext):
-                        resolved.append(os.path.join(root, file))
-        elif os.path.isfile(path) and path.lower().endswith(allowed_ext):
+            if should_recursive:
+                resolved.extend(
+                    _scan_directory_tree(path, allowed_ext, ignore_mime)
+                )
+            else:
+                resolved.extend(
+                    entry.path for entry in os.scandir(path)
+                    if entry.is_file() and (
+                        entry.name.lower().endswith(allowed_ext) or ignore_mime
+                    )
+                )
+        elif os.path.isfile(path) and whitelisted:
+#>>>>>>> 1a250c41e07de5e141c24ebec4d755d86308ab89
             resolved.append(path)
     return resolved
+
+
+def _scan_directory_tree(path, allowed_ext, ignore_mime):
+    files = []
+    for entry in os.scandir(path):
+        whitelisted = (entry.name.lower().endswith(allowed_ext) or ignore_mime)
+        if entry.is_file() and whitelisted:
+            files.append(entry.path)
+        if entry.is_dir():
+            files.extend(_scan_directory_tree(entry.path, allowed_ext, ignore_mime))
+    return files
 
 
 def _upload_image(path, session, create_url, complete_url, log):

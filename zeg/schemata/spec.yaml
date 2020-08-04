@@ -11,8 +11,14 @@ properties:
   file_config:
     type: object
     properties:
+      recursive:
+        type: boolean
+      mime_type:
+        type: string
+        pattern: ^[-\w.]+/[-\w.]+$
       path:
         type: string
+        pattern: \.(tab|tsv|csv|xlsx)$
       directory:
         type: string
       paths:

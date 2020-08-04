@@ -2,6 +2,7 @@
 
 """Collection commands."""
 import sys
+from datetime import datetime
 
 from colorama import Fore, Style
 
@@ -25,33 +26,47 @@ def get(log, session, args):
 
 
 def create(log, session, args):
-    """Get a collection."""
+    """Create a collection."""
+    time_start = datetime.now()
     url = "{}collections/".format(
         http.get_api_url(args.url, args.project),)
     log.debug('POST: {}'.format(url))
+
+    # parse config
     configuration = config.parse_args(args, log)
     if "name" not in configuration:
         log.error('Collection name missing from config file')
         sys.exit(1)
+
+    # use name from config
     coll = {
         "name": configuration["name"],
     }
+    # use description from config
     for key in ["description"]:
         if key in configuration:
             coll[key] = configuration[key]
+
+    # create the collection
     response_json = http.post_json(session, url, coll)
     log.print_json(response_json, "collection", "post", shorten=False)
     coll = response_json["collection"]
+
     dataset_config = dict(
         configuration, id=coll["upload_dataset_id"]
     )
     datasets.update_from_dict(log, session, dataset_config)
+
     imageset_config = dict(
         configuration, id=coll["imageset_id"]
     )
     imageset_config["dataset_id"] = coll["dataset_id"]
     imageset_config["collection_id"] = coll["id"]
     imagesets.update_from_dict(log, session, imageset_config)
+    delta_time = datetime.now() - time_start
+    log.debug("Collection uploaded in {}".format(delta_time))
+
+    return coll
 
 
 def update(log, session, args):

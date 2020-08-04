@@ -7,6 +7,7 @@ import sys
 from argparse import ArgumentParser, RawDescriptionHelpFormatter
 from textwrap import dedent
 
+import jsonschema
 import pkg_resources
 
 from . import (
@@ -126,7 +127,10 @@ def main():
     login_parser.set_defaults(action='login')
     _add_standard_args(login_parser)
 
-    args = parser.parse_args()
+    try:
+        args = parser.parse_args()
+    except jsonschema.exceptions.ValidationError:
+        sys.exit(1)
 
     if len(sys.argv) == 1:
         parser.print_help(sys.stderr)

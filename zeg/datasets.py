@@ -70,7 +70,7 @@ def update_from_dict(log, session, configuration):
     log.debug("File mime: {}".format(file_mime))
     file_name = os.path.basename(file_path)
 
-    with open(file_path) as f:
+    with open(file_path, 'rb') as f:
         blob_id = str(uuid.uuid4())
         info = {
             "image": {

@@ -1,11 +1,11 @@
-# Copyright 2018 Zegami Ltd
+# Copyright 2018-2020 Zegami Ltd
 
 """Collection commands."""
 import os
 import sys
 
-from jsonschema import validate
 import yaml
+import jsonschema
 
 
 def parse_args(args, log):
@@ -13,17 +13,17 @@ def parse_args(args, log):
     if 'config' not in args:
         log.error('Configuration file path missing')
         sys.exit(1)
-    configuration = parse_config(args.config)
+    configuration = parse_config(args.config, log)
     for attr in ['id', 'project', 'url']:
         if attr in args:
             configuration[attr] = getattr(args, attr)
     return configuration
 
 
-def parse_config(path):
+def parse_config(path, log):
     """Parse yaml collection configuration."""
     configuration = load_config(path)
-    validate_config(configuration)
+    validate_config(configuration, log)
     return configuration
 
 
@@ -33,7 +33,7 @@ def load_config(path):
         return yaml.load(stream, Loader=yaml.SafeLoader)
 
 
-def validate_config(configuration):
+def validate_config(configuration, log):
     schema_path = os.path.join(
         os.path.dirname(__file__),
         'schemata',
@@ -42,4 +42,11 @@ def validate_config(configuration):
     with open(schema_path, 'r') as stream:
         schema = yaml.load(stream, Loader=yaml.SafeLoader)
 
-    validate(configuration, schema)
+    try:
+        jsonschema.validate(configuration, schema)
+    except jsonschema.exceptions.ValidationError as ex:
+        log.error(
+            'Configuration validation error. {err}',
+            err=ex.message
+        )
+        raise ex

@@ -1,0 +1,25 @@
+# Configuration for gating using Azure DevOps Pipeline
+# https://docs.microsoft.com/en-gb/azure/devops/pipelines/
+# https://github.com/tox-dev/azure-pipelines-template
+
+resources:
+  repositories:
+  - repository: tox
+    type: github
+    endpoint: zegami
+    name: tox-dev/azure-pipelines-template
+
+trigger: none
+
+pr:
+- master
+
+jobs:
+- template: run-tox-env.yml@tox
+  parameters:
+    jobs:
+      flake8: null
+      py36: null
+      py37: null
+      py38:
+        image: [linux, windows]

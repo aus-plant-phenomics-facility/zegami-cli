@@ -65,7 +65,7 @@ def make_session(endpoint, token):
 
     # Retry post requests as well as the usual methods.
     retry_methods = urllib3.util.retry.Retry.DEFAULT_METHOD_WHITELIST.union(
-        ('POST'))
+        ('POST', 'PUT'))
     retry = urllib3.util.retry.Retry(
         total=10,
         backoff_factor=0.5,
@@ -83,10 +83,11 @@ def make_session(endpoint, token):
 def handle_response(response):
     is_204 = response.status_code == 204
     is_200 = response.status_code == 200
+    is_201 = response.status_code == 201
 
     if response.status_code >= 300:
         raise ClientError(response)
-    elif (is_204 or is_200 and not response.content):
+    elif (is_204 or is_201 or is_200 and not response.content):
         return None
     try:
         json = response.json()
@@ -123,18 +124,30 @@ def delete(session, url):
 def put_file(session, url, filelike, mimetype):
     """Put binary content and decode json respose."""
     headers = {'Content-Type': mimetype}
+    headers.update(get_platform_headers(url))
     with session.put(url, data=filelike, headers=headers) as response:
         return handle_response(response)
 
 
 def put_json(session, url, python_obj):
+    headers = get_platform_headers(url)
     """Put json content and decode json response."""
-    with session.put(url, json=python_obj) as response:
+    with session.put(url, json=python_obj, headers=headers) as response:
         return handle_response(response)
 
 
 def put(session, url, data, content_type):
     """Put data and decode json response."""
     headers = {'Content-Type': content_type}
+    headers.update(get_platform_headers(url))
     with session.put(url, data=data, headers=headers) as response:
         return handle_response(response)
+
+
+def get_platform_headers(url):
+    # Uploading blobs to azure requires us to specify the kind of blob
+    # Block blobs are typical object storage
+    # https://docs.microsoft.com/en-us/azure/storage/blobs/storage-blobs-introduction#blobs
+    if 'windows.net' in url:
+        return {'x-ms-blob-type': 'BlockBlob'}
+    return {}
