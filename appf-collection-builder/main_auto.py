@@ -114,9 +114,11 @@ def upload_dataset_from_database(collection_obj, db_name, query, token, project)
 
     with open("dataset-upload.sh", 'r') as dataset_upload_file:
         dataset_upload = dataset_upload_file.read()
+    print("before zeg()")
     args = dataset_upload.format(dataset_upload_id=collection_obj['upload_dataset_id'], token=token, project=project)
     sys.argv = args.split()
     zeg()
+    print("after zeg()")
 
 
 def upload_imageset_from_database(collection_obj, db_name, query, token, project):
@@ -239,7 +241,7 @@ def main():
     if len(sys.argv) > 1:
         if sys.argv[1] == "auto":
 
-            projects = ["iCFLiDym", "OVdSdE5n"]
+            projects = ["iCFLiDym", "hyCMS8GC","OVdSdE5n"]
 
             for project in projects:
 
@@ -283,6 +285,8 @@ def main():
                         print(measurement_label)
 
                         collection_obj = find_or_create_collection(token, db_name, measurement_label, project)
+                        
+                        print("collection found or created")
 
                         query = prepare_database_query(db_name, imaging_day, measurement_label)
 
