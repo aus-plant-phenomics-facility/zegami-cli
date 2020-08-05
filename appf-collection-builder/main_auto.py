@@ -133,7 +133,7 @@ def upload_imageset_from_database(collection_obj, db_name, query, token, project
     if 'imageset' in response_data:
         if 'images' in response_data['imageset']:
             existing_images = [i['name'] for i in response_data['imageset']['images']]
-    image_path_column = "{}".format(camera_label)
+    image_path_column = "{}_path".format(camera_label)
 
     lemnatec_data = query_database(db_name, query)
     lemnatec_df = pd.DataFrame(lemnatec_data)
@@ -146,15 +146,11 @@ def upload_imageset_from_database(collection_obj, db_name, query, token, project
             paths = "    - /prod_images/" + db_name + "/" + lemnatec_df[image_path_column].dropna()
             paths = paths.str.cat(sep="\n")
 
-            print(paths)
-
             with open("template-imageset.yaml", 'r') as imageset_template_file:
                 imageset_template = imageset_template_file.read()
             imageset_yaml = imageset_template.format(paths=paths, path_column=camera_label,
                                                      collection_id=collection_obj['id'],
                                                      dataset_id=collection_obj['dataset_id'])
-
-            print(imageset_yaml)
             with open("imageset.yaml", "w") as text_file:
                 text_file.write(imageset_yaml)
             with open("imageset-upload.sh", 'r') as imageset_upload_file:
