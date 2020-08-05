@@ -12,6 +12,8 @@ SRC_DATABASE = 2
 
 TPA_PLANTDB = "192.168.0.24"
 
+TPA_WORKSPACE_ID = "OVdSdE5n"
+
 user = "readonlyuser"
 password = "readonlyuser"
 
@@ -119,7 +121,7 @@ def upload_dataset_from_database(collection_obj, db_name, query, token, project)
     zeg()
 
 
-def upload_imageset_from_database(collection_obj, db_name, query, token, project):
+def upload_imageset_from_database(collection_obj, db_name, query, token, project, camera_label):
     url = "https://zegami.com/api/v0/project/{project}/imagesets/{imageset_id}".format(project=project,
                                                                                        imageset_id=collection_obj[
                                                                                            'imageset_id'])
@@ -131,7 +133,6 @@ def upload_imageset_from_database(collection_obj, db_name, query, token, project
     if 'imageset' in response_data:
         if 'images' in response_data['imageset']:
             existing_images = [i['name'] for i in response_data['imageset']['images']]
-    camera_label = "RGB_3D_3D_side_far_0"
     image_path_column = "{}_path".format(camera_label)
 
     lemnatec_data = query_database(db_name, query)
@@ -239,65 +240,65 @@ def main():
     if len(sys.argv) > 1:
         if sys.argv[1] == "auto":
 
-            #projects = ["iCFLiDym", "hyCMS8GC","OVdSdE5n"]
-
             projects_df = pd.read_csv(os.path.join("/projects/projects.csv"))
 
             projects = projects_df['project_id']
 
+            prod_databases = query_database("LTSystem", "SELECT name FROM ltdbs;")
+
             for project in projects:
 
-                prod_databases = query_database("LTSystem", "SELECT name FROM ltdbs;")
+                project_mls_df = pd.read_csv(os.path.join("/projects", project))
 
                 for db_record in prod_databases:
                     db_name = db_record['name']
                     print("{}".format(db_name))
 
-                    if project != "OVdSdE5n":
-                        project_mls_df = pd.read_csv(os.path.join("/projects", project))
+                    project_mls = tuple(project_mls_df.loc[project_mls_df['database'] == db_name][
+                        "measurement_label"].to_list())
 
-                        project_mls_this_db = project_mls_df.loc[project_mls_df['database'] == db_name][
-                            "measurement_label"]
-
-                        project_mls = tuple(project_mls_this_db.to_list())
-
-                        if len(project_mls) < 1:
-                            measurement_labels = []
-
-                        else:
-                            measurement_labels = query_database(db_name, """SELECT measurement_label, min(time_stamp) AS imaging_day
-                                                            FROM snapshot
-                                                            WHERE measurement_label in %s
-                                                            GROUP BY measurement_label
-                                                            ORDER by measurement_label;""",
-                                                                (project_mls,))
-
-
+                    if len(project_mls) < 1:
+                        measurement_labels = []
 
                     else:
-                        measurement_labels = query_database(db_name,
-                                                            "SELECT measurement_label, min(time_stamp) AS imaging_day "
-                                                            "FROM snapshot "
-                                                            "GROUP BY measurement_label "
-                                                            "ORDER by measurement_label;")
+                        if project != TPA_WORKSPACE_ID:
+                            measurement_labels = query_database(db_name, """SELECT measurement_label, min(time_stamp) AS imaging_day
+                                                                FROM snapshot
+                                                                WHERE measurement_label in %s
+                                                                GROUP BY measurement_label
+                                                                ORDER by measurement_label;""",
+                                                                    (project_mls,))
+
+
+
+                        else:
+                            measurement_labels = query_database(db_name,
+                                                                "SELECT measurement_label, min(time_stamp) AS imaging_day "
+                                                                "FROM snapshot "
+                                                                "GROUP BY measurement_label "
+                                                                "ORDER by measurement_label;")
 
                     for ml_record in measurement_labels:
                         measurement_label = ml_record['measurement_label']
                         imaging_day = ml_record['imaging_day']
+
                         print(measurement_label)
 
+                        camera_label = "RGB_3D_3D_side_far_0"
+                        if measurement_label in project_mls:
+                            camera_label = project_mls_df.loc[project_mls_df['measurement_label'] == measurement_label][camera_label]
+
+                        print(camera_label)
+
                         collection_obj = find_or_create_collection(token, db_name, measurement_label, project)
-                        
                         print("collection found or created")
 
                         query = prepare_database_query(db_name, imaging_day, measurement_label)
 
                         upload_dataset_from_database(collection_obj, db_name, query, token, project)
-
                         print("uploaded data")
 
-                        upload_imageset_from_database(collection_obj, db_name, query, token, project)
-
+                        upload_imageset_from_database(collection_obj, db_name, query, token, project, camera_label)
                         print("uploaded images")
 
                         fix_datatypes(collection_obj, token, project)
@@ -312,6 +313,7 @@ def main():
             file_selection = int(input("Select File:"))
 
             db_name = ""
+
             collection_name = files[file_selection]
 
             collection_obj = find_or_create_collection(token, db_name, collection_name, project)
