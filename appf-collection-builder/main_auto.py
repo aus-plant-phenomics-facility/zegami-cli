@@ -239,7 +239,11 @@ def main():
     if len(sys.argv) > 1:
         if sys.argv[1] == "auto":
 
-            projects = ["iCFLiDym", "hyCMS8GC","OVdSdE5n"]
+            #projects = ["iCFLiDym", "hyCMS8GC","OVdSdE5n"]
+
+            projects_df = pd.read_csv(os.path.join("/projects/projects.csv"))
+
+            projects = projects_df['project_id']
 
             for project in projects:
 
