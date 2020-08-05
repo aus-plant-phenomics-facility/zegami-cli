@@ -286,7 +286,7 @@ def main():
 
                         camera_label = "RGB_3D_3D_side_far_0"
                         if measurement_label in project_mls:
-                            camera_label = project_mls_df.loc[project_mls_df['measurement_label'] == measurement_label][camera_label]
+                            camera_label = project_mls_df.loc[project_mls_df['measurement_label'] == measurement_label]['camera_label']
 
                         print(camera_label)
 
