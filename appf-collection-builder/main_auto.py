@@ -129,11 +129,15 @@ def upload_imageset_from_database(collection_obj, db_name, query, token, project
     response = requests.get(url, headers=headers)
     response_data = response.json()
 
+    print(response_data)
+
     existing_images = []
     if 'imageset' in response_data:
         if 'images' in response_data['imageset']:
             existing_images = [i['name'] for i in response_data['imageset']['images']]
     image_path_column = "{}_path".format(camera_label)
+
+    print(existing_images)
 
     lemnatec_data = query_database(db_name, query)
     lemnatec_df = pd.DataFrame(lemnatec_data)
