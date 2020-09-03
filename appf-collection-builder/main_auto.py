@@ -12,7 +12,7 @@ SRC_DATABASE = 2
 
 TPA_PLANTDB = "192.168.0.24"
 
-TPA_WORKSPACE_ID = "OVdSdE5n"
+TPA_WORKSPACE_ID = "HqEiLESn"
 
 user = "readonlyuser"
 password = "readonlyuser"
@@ -157,8 +157,6 @@ def upload_imageset_from_database(collection_obj, db_name, query, token, project
                 imageset_upload = imageset_upload_file.read()
             args = imageset_upload.format(imageset_id=collection_obj['imageset_id'], token=token, project=project)
             sys.argv = args.split()
-            print(imageset_yaml)
-            print(sys.argv)
             zeg()
 
 
@@ -305,7 +303,7 @@ def main():
 
                         fix_datatypes(collection_obj, token, project)
     else:
-        project = "OVdSdE5n"
+        project = "HqEiLESn"
 
         data_source = int(input("File [1] or Database[2]?"))
         if data_source == SRC_FILE:
