@@ -157,6 +157,8 @@ def upload_imageset_from_database(collection_obj, db_name, query, token, project
                 imageset_upload = imageset_upload_file.read()
             args = imageset_upload.format(imageset_id=collection_obj['imageset_id'], token=token, project=project)
             sys.argv = args.split()
+            print(imageset_yaml)
+            print(sys.argv)
             zeg()
 
 
@@ -282,13 +284,13 @@ def main():
                         measurement_label = ml_record['measurement_label']
                         imaging_day = ml_record['imaging_day']
 
-                        print(measurement_label)
+                        print("{}-{}-{}".format(project, db_name, measurement_label))
 
                         camera_label = "RGB_3D_3D_side_far_0"
                         if measurement_label in project_mls:
                             camera_label = project_mls_df.loc[project_mls_df['measurement_label'] == measurement_label]['camera_label'].to_list()[0]
 
-                        print(camera_label)
+                        print("{}-{}-{}-{}".format(project, db_name, measurement_label,camera_label))
 
                         collection_obj = find_or_create_collection(token, db_name, measurement_label, project)
                         print("collection found or created")
