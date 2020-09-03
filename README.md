@@ -62,9 +62,10 @@ file_config:
     paths:
         - an_image.jpg
         - a/directory/path
-# Name of the column in the dataset that contains the image name
+# Name of the column in the dataset that contains the image name. (optional)
 dataset_column: image_name
 ```
+If dataset_column is not provided, the backend will automatically select the column with the closest match.
 
 When providing a `mime_type` property, all files in directories will be uploaded regardless of extension.
 

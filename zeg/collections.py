@@ -47,6 +47,10 @@ def create(log, session, args):
         if key in configuration:
             coll[key] = configuration[key]
 
+    # replace empty description with an empty string
+    if 'description' in coll and coll["description"] is None:
+        coll["description"] = ''
+
     # create the collection
     response_json = http.post_json(session, url, coll)
     log.print_json(response_json, "collection", "post", shorten=False)

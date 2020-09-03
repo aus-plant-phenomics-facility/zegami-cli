@@ -427,27 +427,6 @@ class TestValidateConfig(unittest.TestCase):
             err="'path' is a required property",
         )
 
-    def test_image_config_missing_dataset_column(self):
-        config_data = """
-            imageset_type: file
-            file_config:
-                paths:
-                    - image.jpg
-                    - a/directory/path
-            collection_id: 5ad3a99b75f3b30001732f36
-            dataset_id: 5ad3a99b75f3b30001732f36
-        """
-
-        configuration = self._get_configuration(config_data)
-
-        with self.assertRaises(jx.ValidationError):
-            config.validate_config(configuration, logger)
-
-        logger.error.assert_called_with(
-            ANY,
-            err="'path' is a required property",
-        )
-
     def test_collection_publish(self):
         config_data = """
             update_type: publish
