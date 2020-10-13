@@ -129,7 +129,7 @@ def upload_imageset_from_database(collection_obj, db_name, query, token, project
     response = requests.get(url, headers=headers)
     response_data = response.json()
 
-    print(response_data)
+    #print(response_data)
 
     existing_images = []
     if 'imageset' in response_data:
@@ -137,7 +137,7 @@ def upload_imageset_from_database(collection_obj, db_name, query, token, project
             existing_images = [i['name'] for i in response_data['imageset']['images']]
     image_path_column = "{}_path".format(camera_label)
 
-    print(existing_images)
+    #print(existing_images)
 
     lemnatec_data = query_database(db_name, query)
     lemnatec_df = pd.DataFrame(lemnatec_data)
@@ -198,8 +198,8 @@ def upload_imageset_from_file(collection_obj, collection_name, token, project):
 
     for path in lemnatec_df[image_path_column]:
         t_path = os.path.join("/export_images/plantdb/tpa_backup", input_filename, path)
-        print(t_path)
-        print(os.stat(t_path))
+        #print(t_path)
+        #print(os.stat(t_path))
 
     paths = "    - /export_images/plantdb/tpa_backup/" + input_filename + "/" + lemnatec_df[image_path_column].dropna()
     paths = paths.str.cat(sep="\n")
@@ -286,7 +286,7 @@ def main():
                         measurement_label = ml_record['measurement_label']
                         imaging_day = ml_record['imaging_day']
 
-                        print("{}-{}-{}".format(project, db_name, measurement_label))
+                        print("{}-{}-{}-{}".format(project, db_name, measurement_label, imaging_day))
 
                         camera_label = "RGB_3D_3D_side_far_0"
                         if measurement_label in project_mls:
