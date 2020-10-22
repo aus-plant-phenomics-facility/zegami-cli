@@ -6,6 +6,19 @@ from zeg.__main__ import main as zeg
 import sys
 import os
 import urllib.parse
+import logging
+
+QUERY_IMAGING_DAY_ZERO = "SELECT measurement_label, min(time_stamp) AS imaging_day " \
+    "FROM snapshot " \
+    "GROUP BY measurement_label " \
+    "ORDER by measurement_label;"
+
+QUERY_DATABASES = "SELECT name FROM ltdbs;"
+
+QUERY_METADATA = "SELECT * " \
+                       "FROM metadata_view " \
+                       "WHERE id_tag in " \
+                       "(SELECT id_tag FROM snapshot WHERE measurement_label = (%s))"
 
 SRC_FILE = 1
 SRC_DATABASE = 2
@@ -16,9 +29,6 @@ TPA_WORKSPACE_ID = "HqEiLESn"
 
 user = "readonlyuser"
 password = "readonlyuser"
-
-
-# prepare dataset from file
 
 
 def get_zegami_token():
@@ -47,7 +57,7 @@ def find_or_create_collection(token, db_name, collection_name, project):
     collection_obj = None
     for i in range(0, len(response_data['collections'])):
         if response_data['collections'][i]['name'] == collection_name:
-            # print(response_data['collections'][i],flush=True)
+            logging.debug(response_data['collections'][i])
             collection_obj = response_data['collections'][i]
 
     if collection_obj is None:
@@ -69,15 +79,11 @@ def find_or_create_collection(token, db_name, collection_name, project):
 
 
 def query_database(db_name, query, params=None):
-    # dbname – the database name (database is a deprecated alias)
-    # user – user name used to authenticate
-    # password – password used to authenticate
-    # host – database host address (defaults to UNIX socket if not provided)
-    # port – connection port number (defaults to 5432 if not provided)
+
     conn = psycopg2.connect(dbname=db_name, user=user, password=password, host=TPA_PLANTDB)
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-    #    print(cur.mogrify(query, params))
+    logging.debug(cur.mogrify(query, params))
 
     cur.execute(query, params)
 
@@ -88,11 +94,8 @@ def query_database(db_name, query, params=None):
     return result
 
 
-def prepare_database_query(db_name, imaging_day, measurement_label):
-    metadata_fields = query_database(db_name, "SELECT * "
-                                              "FROM metadata_view "
-                                              "WHERE id_tag in "
-                                              "(SELECT id_tag FROM snapshot WHERE measurement_label = (%s))",
+def prepare_database_query(db_name, imaging_day_zero, measurement_label):
+    metadata_fields = query_database(db_name, QUERY_METADATA,
                                      [measurement_label, ])
     metadata_fields_df = pd.DataFrame(metadata_fields)
     metadata_fields_df = metadata_fields_df.dropna(how='all', axis=1)
@@ -101,7 +104,7 @@ def prepare_database_query(db_name, imaging_day, measurement_label):
         *sorted(metadata_fields_df.columns))
     with open("template-qb.sql", 'r') as query_file:
         query_builder_template = query_file.read()
-    query = query_builder_template.format(measurement_label=measurement_label, imaging_day=imaging_day,
+    query = query_builder_template.format(measurement_label=measurement_label, imaging_day_zero=imaging_day_zero,
                                           metadata_view_fields=metadata_view_fields)
     return query
 
@@ -129,7 +132,7 @@ def upload_imageset_from_database(collection_obj, db_name, query, token, project
     response = requests.get(url, headers=headers)
     response_data = response.json()
 
-    #print(response_data)
+    logging.debug(response_data)
 
     existing_images = []
     if 'imageset' in response_data:
@@ -137,7 +140,7 @@ def upload_imageset_from_database(collection_obj, db_name, query, token, project
             existing_images = [i['name'] for i in response_data['imageset']['images']]
     image_path_column = "{}_path".format(camera_label)
 
-    #print(existing_images)
+    logging.debug(existing_images)
 
     lemnatec_data = query_database(db_name, query)
     lemnatec_df = pd.DataFrame(lemnatec_data)
@@ -152,16 +155,8 @@ def upload_imageset_from_database(collection_obj, db_name, query, token, project
 
             with open("template-imageset.yaml", 'r') as imageset_template_file:
                 imageset_template = imageset_template_file.read()
-            imageset_yaml = imageset_template.format(paths=paths, path_column=camera_label,
-                                                     collection_id=collection_obj['id'],
-                                                     dataset_id=collection_obj['dataset_id'])
-            with open("imageset.yaml", "w") as text_file:
-                text_file.write(imageset_yaml)
-            with open("imageset-upload.sh", 'r') as imageset_upload_file:
-                imageset_upload = imageset_upload_file.read()
-            args = imageset_upload.format(imageset_id=collection_obj['imageset_id'], token=token, project=project)
-            sys.argv = args.split()
-            zeg()
+
+            upload_imageset(collection_obj, camera_label, imageset_template, paths, project, token)
 
 
 def upload_dataset_from_file(collection_name, dataset_upload_id, token, project):
@@ -198,21 +193,22 @@ def upload_imageset_from_file(collection_obj, collection_name, token, project):
 
     for path in lemnatec_df[image_path_column]:
         t_path = os.path.join("/export_images/plantdb/tpa_backup", input_filename, path)
-        #print(t_path)
-        #print(os.stat(t_path))
+        logging.debug(t_path)
+        logging.debug(os.stat(t_path))
 
     paths = "    - /export_images/plantdb/tpa_backup/" + input_filename + "/" + lemnatec_df[image_path_column].dropna()
     paths = paths.str.cat(sep="\n")
+    upload_imageset(collection_obj, image_path_column, imageset_template, paths, project, token)
+
+
+def upload_imageset(collection_obj, image_path_column, imageset_template, paths, project, token):
     imageset_yaml = imageset_template.format(paths=paths, path_column=image_path_column,
                                              collection_id=collection_obj['id'],
                                              dataset_id=collection_obj['dataset_id'])
-
     with open("imageset.yaml", "w") as text_file:
         text_file.write(imageset_yaml)
-
     with open("imageset-upload.sh", 'r') as imageset_upload_file:
         imageset_upload = imageset_upload_file.read()
-
     args = imageset_upload.format(imageset_id=collection_obj['imageset_id'], token=token, project=project)
     sys.argv = args.split()
     zeg()
@@ -235,7 +231,7 @@ def fix_datatypes(collection_obj, token, project):
 
         response = requests.patch(url, json=data, headers=headers)
 
-        #print(response.json())
+        logging.debug(response.json())
 
 
 def main():
@@ -248,7 +244,7 @@ def main():
 
             projects = projects_df['project_id']
 
-            prod_databases = query_database("LTSystem", "SELECT name FROM ltdbs;")
+            prod_databases = query_database("LTSystem", QUERY_DATABASES)
 
             for project in projects:
 
@@ -256,7 +252,7 @@ def main():
 
                 for db_record in prod_databases:
                     db_name = db_record['name']
-                    print("{}".format(db_name))
+                    logging.info("{}".format(db_name))
 
                     project_mls = tuple(project_mls_df.loc[project_mls_df['database'] == db_name][
                         "measurement_label"].to_list())
@@ -265,49 +261,34 @@ def main():
                         measurement_labels = []
 
                     else:
-                        if project != TPA_WORKSPACE_ID:
-                            measurement_labels = query_database(db_name, """SELECT measurement_label, min(time_stamp) AS imaging_day
-                                                                FROM snapshot
-                                                                WHERE measurement_label in %s
-                                                                GROUP BY measurement_label
-                                                                ORDER by measurement_label;""",
-                                                                    (project_mls,))
-
-
-
-                        else:
-                            measurement_labels = query_database(db_name,
-                                                                "SELECT measurement_label, min(time_stamp) AS imaging_day "
-                                                                "FROM snapshot "
-                                                                "GROUP BY measurement_label "
-                                                                "ORDER by measurement_label;")
+                        measurement_labels = query_database(db_name, QUERY_IMAGING_DAY_ZERO)
 
                     for ml_record in measurement_labels:
                         measurement_label = ml_record['measurement_label']
-                        imaging_day = ml_record['imaging_day']
+                        imaging_day_zero = ml_record['imaging_day_zero']
 
-                        print("{}-{}-{}-{}".format(project, db_name, measurement_label, imaging_day))
+                        logging.info("{}-{}-{}-{}".format(project, db_name, measurement_label, imaging_day_zero))
 
                         camera_label = "RGB_3D_3D_side_far_0"
                         if measurement_label in project_mls:
                             camera_label = project_mls_df.loc[project_mls_df['measurement_label'] == measurement_label]['camera_label'].to_list()[0]
 
-                        print("{}-{}-{}-{}".format(project, db_name, measurement_label,camera_label))
+                        logging.info("{}-{}-{}-{}".format(project, db_name, measurement_label, camera_label))
 
                         collection_obj = find_or_create_collection(token, db_name, measurement_label, project)
-                        print("collection found or created")
+                        logging.info("collection found or created")
 
-                        query = prepare_database_query(db_name, imaging_day, measurement_label)
+                        query = prepare_database_query(db_name, imaging_day_zero, measurement_label)
 
                         upload_dataset_from_database(collection_obj, db_name, query, token, project)
-                        print("uploaded data")
+                        logging.info("uploaded data")
 
                         upload_imageset_from_database(collection_obj, db_name, query, token, project, camera_label)
-                        print("uploaded images")
+                        logging.info("uploaded images")
 
                         fix_datatypes(collection_obj, token, project)
     else:
-        project = "HqEiLESn"
+        project = TPA_WORKSPACE_ID
 
         data_source = int(input("File [1] or Database[2]?"))
         if data_source == SRC_FILE:
@@ -326,7 +307,7 @@ def main():
 
             upload_imageset_from_file(collection_obj, collection_name, token, project)
         elif data_source == SRC_DATABASE:
-            prod_databases = query_database("LTSystem", "SELECT name FROM ltdbs;")
+            prod_databases = query_database("LTSystem", QUERY_DATABASES)
 
             for i, database in enumerate(prod_databases):
                 print("{}:\t{}".format(i, database['name']))
@@ -334,10 +315,7 @@ def main():
             db_selection = int(input("Select Database: "))
             db_name = prod_databases[db_selection]['name']
 
-            measurement_labels = query_database(db_name, "SELECT measurement_label, min(time_stamp) AS imaging_day "
-                                                         "FROM snapshot "
-                                                         "GROUP BY measurement_label "
-                                                         "ORDER by measurement_label;")
+            measurement_labels = query_database(db_name, QUERY_IMAGING_DAY_ZERO)
 
             for i, measurement_label in enumerate(measurement_labels):
                 print("{}:\t{}".format(i, measurement_label['measurement_label']))
@@ -345,21 +323,23 @@ def main():
             ml = int(input("Enter a number: "))
 
             measurement_label = measurement_labels[ml]['measurement_label']
-            imaging_day = measurement_labels[ml]['imaging_day']
+            imaging_day_zero = measurement_labels[ml]['imaging_day_zero']
+
+            #TODO: Select camera_label
+            camera_label = "RGB_3D_3D_side_far_0"
 
             collection_obj = find_or_create_collection(token, db_name, measurement_label, project)
 
-            query = prepare_database_query(db_name, imaging_day, measurement_label)
+            query = prepare_database_query(db_name, imaging_day_zero, measurement_label)
 
             upload_dataset_from_database(collection_obj, db_name, query, token, project)
 
-            upload_imageset_from_database(collection_obj, db_name, query, token, project)
+            upload_imageset_from_database(collection_obj, db_name, query, token, project, camera_label)
 
             fix_datatypes(collection_obj, token, project)
 
         else:
-            print("Invalid data source selection.")
+            logging.error("Invalid data source selection.")
             exit()
-
 
 main()

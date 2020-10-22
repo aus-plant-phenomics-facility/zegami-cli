@@ -5,7 +5,7 @@ from
    snapshot.id_tag AS "Plant ID",
    {metadata_view_fields}
    trim(both '"' from to_json(snapshot.time_stamp)::text) as "Time",
-   DATE_PART('day', snapshot.time_stamp - '{imaging_day}') as "Imaging Day",
+   DATE_PART('day', snapshot.time_stamp - '{imaging_day_zero}') as "Imaging Day",
    snapshot.water_amount AS "Water Amount",
    snapshot.weight_after AS "Weight After",
    snapshot.weight_before AS "Weight Before",
