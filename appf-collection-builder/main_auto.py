@@ -8,7 +8,9 @@ import os
 import urllib.parse
 import logging
 
-QUERY_IMAGING_DAY_ZERO = "SELECT measurement_label, min(time_stamp) AS imaging_day " \
+logging.basicConfig(level=logging.DEBUG)
+
+QUERY_IMAGING_DAY_ZERO = "SELECT measurement_label, min(time_stamp) AS imaging_day_zero " \
     "FROM snapshot " \
     "GROUP BY measurement_label " \
     "ORDER by measurement_label;"
