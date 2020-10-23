@@ -8,7 +8,7 @@ import os
 import urllib.parse
 import logging
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 
 QUERY_IMAGING_DAY_ZERO = "SELECT measurement_label, min(time_stamp) AS imaging_day_zero " \
     "FROM snapshot " \
@@ -104,6 +104,7 @@ def prepare_database_query(db_name, imaging_day_zero, measurement_label):
     # TODO: Check metadata exists
     metadata_view_fields = ("metadata_view.\"{}\"," * len(metadata_fields_df.columns)).format(
         *sorted(metadata_fields_df.columns))
+    # TODO: Switch based on inputs.
     with open("template-qb.sql", 'r') as query_file:
         query_builder_template = query_file.read()
     query = query_builder_template.format(measurement_label=measurement_label, imaging_day_zero=imaging_day_zero,
@@ -116,6 +117,7 @@ def upload_dataset_from_database(collection_obj, db_name, query, token, project)
         dataset_template = dataset_template_file.read()
     dataset_yaml = dataset_template.format(database=db_name, query=query.replace("\n", ""), user=user,
                                            password=password, host=TPA_PLANTDB)
+    logging.debug(dataset_yaml)
     with open("dataset.yaml", "w") as text_file:
         text_file.write(dataset_yaml)
 
@@ -309,6 +311,7 @@ def main():
 
             upload_imageset_from_file(collection_obj, collection_name, token, project)
         elif data_source == SRC_DATABASE:
+            # TODO: Switch based on inputs between LTSystem and LTSystem_Project or Production
             prod_databases = query_database("LTSystem", QUERY_DATABASES)
 
             for i, database in enumerate(prod_databases):
