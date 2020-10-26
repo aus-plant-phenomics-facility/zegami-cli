@@ -1,5 +1,6 @@
 import psycopg2.extras
 import pandas as pd
+import numpy as np
 import requests
 from getpass import getpass
 from zeg.__main__ import main as zeg
@@ -25,9 +26,11 @@ QUERY_METADATA = "SELECT * " \
 SRC_FILE = 1
 SRC_DATABASE = 2
 
-TPA_PLANTDB = "192.168.0.24"
+TPA_PLANTDB = os.environ['TPA_PLANTDB_IP']
 
 TPA_WORKSPACE_ID = "HqEiLESn"
+
+DEFAULT_CAMERA_LABEL = "RGB_3D_3D_side_far_0"
 
 user = "readonlyuser"
 password = "readonlyuser"
@@ -244,55 +247,48 @@ def main():
     if len(sys.argv) > 1:
         if sys.argv[1] == "auto":
 
-            projects_df = pd.read_csv(os.path.join("/projects/projects.csv"))
-
-            projects = projects_df['project_id']
+            list_of_workspace_ids = pd.read_csv(os.path.join("/projects/projects.csv"))['project_id']
 
             prod_databases = query_database("LTSystem", QUERY_DATABASES)
 
-            for project in projects:
-
-                project_mls_df = pd.read_csv(os.path.join("/projects", project))
-
+            for workspace_id in list_of_workspace_ids:
                 for db_record in prod_databases:
                     db_name = db_record['name']
-                    logging.info("{}".format(db_name))
+                    logging.info("{}-{}".format(workspace_id,db_name))
 
-                    project_mls = tuple(project_mls_df.loc[project_mls_df['database'] == db_name][
-                        "measurement_label"].to_list())
+                    df = pd.read_csv(os.path.join("/projects", workspace_id))
+                    mls_in_this_workspace_and_db = df.loc[df['database'] == db_name]
 
-                    if len(project_mls) < 1:
-                        measurement_labels = []
+                    mls_and_imaging_day_zeros = pd.DataFrame([i.copy() for i in query_database(db_name, QUERY_IMAGING_DAY_ZERO)])
 
+                    if workspace_id == TPA_WORKSPACE_ID:
+                        mls_and_id0_in_this_workspace_and_db = pd.merge(mls_in_this_workspace_and_db, mls_and_imaging_day_zeros, how='outer')
                     else:
-                        measurement_labels = query_database(db_name, QUERY_IMAGING_DAY_ZERO)
+                        mls_and_id0_in_this_workspace_and_db = pd.merge(mls_in_this_workspace_and_db, mls_and_imaging_day_zeros)
 
-                    for ml_record in measurement_labels:
+                    logging.debug(mls_and_id0_in_this_workspace_and_db)
+
+                    for i, ml_record in mls_and_id0_in_this_workspace_and_db.iterrows():
                         measurement_label = ml_record['measurement_label']
                         imaging_day_zero = ml_record['imaging_day_zero']
+                        camera_label = ml_record['camera_label'] if not pd.isnull(ml_record['camera_label']) else DEFAULT_CAMERA_LABEL
 
-                        logging.info("{}-{}-{}-{}".format(project, db_name, measurement_label, imaging_day_zero))
+                        logging.info("{}-{}-{}-{}".format(workspace_id, db_name, measurement_label, camera_label))
 
-                        camera_label = "RGB_3D_3D_side_far_0"
-                        if measurement_label in project_mls:
-                            camera_label = project_mls_df.loc[project_mls_df['measurement_label'] == measurement_label]['camera_label'].to_list()[0]
-
-                        logging.info("{}-{}-{}-{}".format(project, db_name, measurement_label, camera_label))
-
-                        collection_obj = find_or_create_collection(token, db_name, measurement_label, project)
+                        collection_obj = find_or_create_collection(token, db_name, measurement_label, workspace_id)
                         logging.info("collection found or created")
 
                         query = prepare_database_query(db_name, imaging_day_zero, measurement_label)
 
-                        upload_dataset_from_database(collection_obj, db_name, query, token, project)
+                        upload_dataset_from_database(collection_obj, db_name, query, token, workspace_id)
                         logging.info("uploaded data")
 
-                        upload_imageset_from_database(collection_obj, db_name, query, token, project, camera_label)
+                        upload_imageset_from_database(collection_obj, db_name, query, token, workspace_id, camera_label)
                         logging.info("uploaded images")
 
-                        fix_datatypes(collection_obj, token, project)
+                        fix_datatypes(collection_obj, token, workspace_id)
     else:
-        project = TPA_WORKSPACE_ID
+        workspace_id = TPA_WORKSPACE_ID
 
         data_source = int(input("File [1] or Database[2]?"))
         if data_source == SRC_FILE:
@@ -305,11 +301,11 @@ def main():
 
             collection_name = files[file_selection]
 
-            collection_obj = find_or_create_collection(token, db_name, collection_name, project)
+            collection_obj = find_or_create_collection(token, db_name, collection_name, workspace_id)
 
-            upload_dataset_from_file(collection_name, collection_obj['upload_dataset_id'], token, project)
+            upload_dataset_from_file(collection_name, collection_obj['upload_dataset_id'], token, workspace_id)
 
-            upload_imageset_from_file(collection_obj, collection_name, token, project)
+            upload_imageset_from_file(collection_obj, collection_name, token, workspace_id)
         elif data_source == SRC_DATABASE:
             # TODO: Switch based on inputs between LTSystem and LTSystem_Project or Production
             prod_databases = query_database("LTSystem", QUERY_DATABASES)
@@ -320,28 +316,28 @@ def main():
             db_selection = int(input("Select Database: "))
             db_name = prod_databases[db_selection]['name']
 
-            measurement_labels = query_database(db_name, QUERY_IMAGING_DAY_ZERO)
+            mls_and_imaging_day_zeros = query_database(db_name, QUERY_IMAGING_DAY_ZERO)
 
-            for i, measurement_label in enumerate(measurement_labels):
+            for i, measurement_label in enumerate(mls_and_imaging_day_zeros):
                 print("{}:\t{}".format(i, measurement_label['measurement_label']))
 
             ml = int(input("Enter a number: "))
 
-            measurement_label = measurement_labels[ml]['measurement_label']
-            imaging_day_zero = measurement_labels[ml]['imaging_day_zero']
+            measurement_label = mls_and_imaging_day_zeros[ml]['measurement_label']
+            imaging_day_zero = mls_and_imaging_day_zeros[ml]['imaging_day_zero']
 
             #TODO: Select camera_label
             camera_label = "RGB_3D_3D_side_far_0"
 
-            collection_obj = find_or_create_collection(token, db_name, measurement_label, project)
+            collection_obj = find_or_create_collection(token, db_name, measurement_label, workspace_id)
 
             query = prepare_database_query(db_name, imaging_day_zero, measurement_label)
 
-            upload_dataset_from_database(collection_obj, db_name, query, token, project)
+            upload_dataset_from_database(collection_obj, db_name, query, token, workspace_id)
 
-            upload_imageset_from_database(collection_obj, db_name, query, token, project, camera_label)
+            upload_imageset_from_database(collection_obj, db_name, query, token, workspace_id, camera_label)
 
-            fix_datatypes(collection_obj, token, project)
+            fix_datatypes(collection_obj, token, workspace_id)
 
         else:
             logging.error("Invalid data source selection.")
