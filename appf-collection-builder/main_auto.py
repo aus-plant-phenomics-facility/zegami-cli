@@ -9,7 +9,7 @@ import os
 import urllib.parse
 import logging
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=os.environ['LOG_LEVEL'])
 
 QUERY_IMAGING_DAY_ZERO = "SELECT measurement_label, min(time_stamp) AS imaging_day_zero " \
     "FROM snapshot " \
@@ -144,10 +144,12 @@ def upload_imageset_from_database(collection_obj, db_name, query, token, project
     existing_images = []
     if 'imageset' in response_data:
         if 'images' in response_data['imageset']:
-            existing_images = [i['name'] for i in response_data['imageset']['images']]
-    image_path_column = "{}_path".format(camera_label)
-
+            if response_data['imageset']['images'] is not None:
+                existing_images = [i['name'] for i in response_data['imageset']['images'] if i is not None]
+    
     logging.debug(existing_images)
+
+    image_path_column = "{}_path".format(camera_label)
 
     lemnatec_data = query_database(db_name, query)
     lemnatec_df = pd.DataFrame(lemnatec_data)
@@ -156,10 +158,23 @@ def upload_imageset_from_database(collection_obj, db_name, query, token, project
 
         lemnatec_df['image_filenames_only'] = lemnatec_df[image_path_column].str.extract(r'(blob\d+)')
         lemnatec_df = lemnatec_df[~lemnatec_df['image_filenames_only'].isin(existing_images)]
+        logging.debug("images that don't yet exist: {}".format(lemnatec_df))
         if len(lemnatec_df[image_path_column].dropna()) > 0:
-            paths = "    - /prod_images/" + db_name + "/" + lemnatec_df[image_path_column].dropna()
-            paths = paths.str.cat(sep="\n")
+            
+            list_of_paths = "/prod_images/" + db_name + "/" + lemnatec_df[image_path_column].dropna()
+            for t_path in list_of_paths:
+                 logging.debug(t_path)
+                 logging.debug(os.stat(t_path))
+                 if os.path.exists(t_path):
+                     logging.error('image missing: {}. check fuse mount is mounted correctly.'.format(t_path))
 
+            paths = '\n'.join(["    - {}".format(path) for path in list_of_paths])
+
+            #paths = "    - /prod_images/" + db_name + "/" + lemnatec_df[image_path_column].dropna()
+            #paths = paths.str.cat(sep="\n")
+            
+
+            logging.debug(paths)
             with open("template-imageset.yaml", 'r') as imageset_template_file:
                 imageset_template = imageset_template_file.read()
 
@@ -214,8 +229,10 @@ def upload_imageset(collection_obj, image_path_column, imageset_template, paths,
                                              dataset_id=collection_obj['dataset_id'])
     with open("imageset.yaml", "w") as text_file:
         text_file.write(imageset_yaml)
+    logging.debug(imageset_yaml)
     with open("imageset-upload.sh", 'r') as imageset_upload_file:
         imageset_upload = imageset_upload_file.read()
+    logging.debug(imageset_upload)
     args = imageset_upload.format(imageset_id=collection_obj['imageset_id'], token=token, project=project)
     sys.argv = args.split()
     zeg()
